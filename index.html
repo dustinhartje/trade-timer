@@ -148,6 +148,13 @@
         </div>
     </div>
 
+    <!-- Buzzer Audio (hidden) -->
+    <audio id="buzzer-audio" preload="auto">
+        <source src="https://cdn.pixabay.com/audio/2022/10/16/audio_12b8b5d8a7.mp3" type="audio/mpeg">
+        <!-- Free buzzer sound from Pixabay, about 5 seconds. -->
+        Your browser does not support the audio element.
+    </audio>
+
     <script>
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -329,6 +336,28 @@
             }
         };
 
+        // ====== 🔊 BUZZER SOUND LOGIC =======
+        const buzzer = document.getElementById('buzzer-audio');
+        let hasBuzzedThisHour = false;
+        function checkBuzzer() {
+            const now = new Date();
+            // Play at xx:59:40-xx:59:44 (for a 5 sec 5s buzzer)
+            if (now.getMinutes() === 59 && now.getSeconds() >= 40 && now.getSeconds() < 45) {
+                if (!hasBuzzedThisHour) {
+                    // Play buzzer (rewind in case)
+                    try {
+                        buzzer.currentTime = 0;
+                        buzzer.play();
+                    } catch (e) {
+                        // Ignore play errors (browser may block until user interacts)
+                    }
+                    hasBuzzedThisHour = true;
+                }
+            } else if (now.getMinutes() !== 59) {
+                hasBuzzedThisHour = false; // Reset for next hour
+            }
+        }
+
         // Event Listeners
         emaInput.addEventListener('input', renderStrategies);
         openPriceInput.addEventListener('input', renderStrategies);
@@ -342,6 +371,9 @@
         
         // Refresh the entire view every minute to update the displayed hours
         setInterval(renderStrategies, 60000); 
+
+        // Buzzer check every 250ms for precision
+        setInterval(checkBuzzer, 250);
 
         // ==============================
         // View All Hour Validity popup
