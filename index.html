@@ -17,6 +17,14 @@
             text-align: center;
             color: #444;
         }
+        .date-time-display {
+            text-align: center;
+            font-size: 1.15rem;
+            color: #333;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
         .container {
             background: #fff;
             padding: 20px;
@@ -109,6 +117,10 @@
 </head>
 <body>
 
+    <div class="date-time-display" id="date-time-display">
+        <!-- Current date and time will be rendered here -->
+    </div>
+
     <div class="container">
         <h1>Trade Timer ⏱️</h1>
 
@@ -132,6 +144,18 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+
+        // =================== 🕒 DATE & TIME DISPLAY ===================
+        const dateTimeDisplay = document.getElementById('date-time-display');
+        function updateDateTime() {
+            const now = new Date();
+            const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
+            const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            dateTimeDisplay.textContent = `${dayOfWeek}, ${dateStr} — ${timeStr}`;
+        }
+        updateDateTime();
+        setInterval(updateDateTime, 1000);
 
         // =================================================================
         // ===== ⚙️ CONFIGURATION: MODIFY STRATEGIES AND HOURS HERE ⚙️ =====
@@ -236,7 +260,7 @@
                 // Create Header
                 const header = document.createElement('div');
                 header.className = 'strategy-header';
-                header.innerHTML = `<h3>${strategy.name} <small>(${strategy.type}) offset:$(strategy.offset)</small></h3>
+                header.innerHTML = `<h3>${strategy.name} <small>(${strategy.type}) offset:${strategy.offset}</small></h3>
                                     <span class="target-price ${highlightClass}">Target: ${targetPrice}</span>`;
                 
                 // Create Hours Container
