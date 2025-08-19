@@ -91,15 +91,21 @@
             font-weight: bold;
             transition: all 0.2s ease-in-out;
         }
-        .hour-valid {
+        /* Valid/Invalid Hour Highlighting */
+        .hour-valid-long {
             background-color: #d4edda; /* Light Green */
             border-color: #c3e6cb;
             color: #155724;
         }
-        .hour-invalid {
-            background-color: #f8d7da; /* Light Red */
+        .hour-valid-short {
+            background-color: #f8d7da; /* Light Red (for background), but will use bright red for text */
             border-color: #f5c6cb;
-            color: #721c24;
+            color: #dc3545; /* Use Bootstrap "danger" red */
+        }
+        .hour-invalid {
+            background-color: #eee !important; /* Light gray */
+            border-color: #d3d3d3 !important;
+            color: #888 !important;
         }
         .highlight-green {
             background-color: #28a745 !important; /* Bright Green */
@@ -272,8 +278,14 @@
                 for (let hour = 9; hour <= 15; hour++) {
                     if (hour >= currentHour) { // Only show current and future hours
                         const isValid = validHoursForDay.includes(hour);
+                        let hourClass = 'hour-toggle ';
+                        if (isValid) {
+                            hourClass += strategy.type === 'long' ? 'hour-valid-long' : 'hour-valid-short';
+                        } else {
+                            hourClass += 'hour-invalid';
+                        }
                         const hourToggle = document.createElement('div');
-                        hourToggle.className = `hour-toggle ${isValid ? 'hour-valid' : 'hour-invalid'}`;
+                        hourToggle.className = hourClass;
                         hourToggle.textContent = `${hour}:00`;
                         hourToggle.dataset.strategy = strategy.name;
                         hourToggle.dataset.hour = hour;
@@ -346,8 +358,9 @@
                         table { border-collapse: collapse; margin-bottom: 35px; width: 100%; }
                         th, td { border: 1px solid #ddd; padding: 6px 9px; text-align: center; }
                         th { background: #f4f4f9; }
-                        .valid { background: #d4edda; color: #155724; }
-                        .invalid { background: #f8d7da; color: #721c24; }
+                        .valid-long { background: #d4edda; color: #155724; }
+                        .valid-short { background: #f8d7da; color: #dc3545; }
+                        .invalid { background: #eee; color: #888; }
                         h2 { margin-top: 32px; }
                         .offset { font-size: 0.9em; color: #888; }
                     </style>
@@ -367,14 +380,20 @@
                     const validHours = strategyHours[strategy.name]?.[day] || [];
                     for (let hour = 9; hour <= 15; hour++) {
                         const valid = validHours.includes(hour);
-                        html += `<td class="${valid ? "valid" : "invalid"}">${valid ? "✓" : "✗"}</td>`;
+                        let tdClass = "";
+                        if (valid) {
+                            tdClass = strategy.type === "long" ? "valid-long" : "valid-short";
+                        } else {
+                            tdClass = "invalid";
+                        }
+                        html += `<td class="${tdClass}">${valid ? "✓" : "✗"}</td>`;
                     }
                     html += `</tr>`;
                 }
                 html += `</tbody></table>`;
             }
             html += `
-                    <p style="font-size:0.85em;color:#888;">Green ✓ = valid hour, Red ✗ = invalid hour for that strategy and day.</p>
+                    <p style="font-size:0.85em;color:#888;">Green ✓ = valid hour (long), Red ✓ = valid hour (short), Gray ✗ = invalid hour for that strategy and day.</p>
                     <button onclick="window.close()" style="margin: 12px auto; display: block; padding: 7px 24px; border-radius: 7px; background: #eee; border: 1px solid #ccc; cursor: pointer;">Close</button>
                 </body></html>
             `;
