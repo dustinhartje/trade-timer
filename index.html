@@ -81,3 +81,232 @@
             cursor: pointer;
             user-select: none;
             font-weight: bold;
+            transition: all 0.2s ease-in-out;
+        }
+        .hour-valid {
+            background-color: #d4edda; /* Light Green */
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .hour-invalid {
+            background-color: #f8d7da; /* Light Red */
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .highlight-green {
+            background-color: #28a745 !important; /* Bright Green */
+            color: white;
+        }
+        .highlight-red {
+            background-color: #dc3545 !important; /* Bright Red */
+            color: white;
+        }
+        .footer-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Trade Timer ⏱️</h1>
+
+        <div class="input-group">
+            <div>
+                <label for="last-hour-ema">Last Hour EMA</label>
+                <input type="number" id="last-hour-ema" placeholder="e.g., 4550.75" step="0.01">
+            </div>
+            <div>
+                <label for="open-price">Open Price</label>
+                <input type="number" id="open-price" placeholder="e.g., 4552.50" step="0.01">
+            </div>
+        </div>
+
+        <div id="strategies-container"></div>
+        
+        <div class="footer-link">
+             <a href="#">View All Hourly Values (Page not included)</a>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // =================================================================
+        // ===== ⚙️ CONFIGURATION: MODIFY STRATEGIES AND HOURS HERE ⚙️ =====
+        // =================================================================
+
+        /**
+         * Define your trading strategies here.
+         * 'name': The display name of the strategy.
+         * 'type': 'long' or 'short'.
+         * 'offset': The integer value for the calculation.
+         */
+        const strategies = [
+            { name: "IRA Bounce", type: "long", offset: 3 },
+            { name: "IRA Reject", type: "short", offset: 5 },
+            { name: "Apex Bounce", type: "long", offset: 2 },
+            { name: "Apex Reject", type: "short", offset: 4 }
+        ];
+
+        /**
+         * Define the default valid trading hours for each strategy.
+         * The keys are the strategy names, matching the 'name' field above.
+         * The values are objects with weekdays as keys.
+         * Each weekday has an array of valid hours (from 9 to 15).
+         */
+        let strategyHours = {
+            "IRA Bounce": {
+                "Monday": [12],
+                "Tuesday": [11, 13],
+                "Wednesday": [10, 13, 14],
+                "Thursday": [9],
+                "Friday": [9, 10]
+            },
+            "IRA Reject": {
+                "Monday": [12],
+                "Tuesday": [9],
+                "Wednesday": [10],
+                "Thursday": [9, 10],
+                "Friday": [9, 10]
+            },
+            "Apex Bounce": {
+                "Monday": [],
+                "Tuesday": [11, 13],
+                "Wednesday": [10, 14],
+                "Thursday": [9],
+                "Friday": [9, 10]
+            },
+            "Apex Reject": {
+                "Monday": [9],
+                "Tuesday": [9],
+                "Wednesday": [9, 10],
+                "Thursday": [9, 10],
+                "Friday": [10]
+            }
+        };
+
+        // =================================================================
+        // =================== 👨‍💻 CORE APPLICATION LOGIC 👨‍💻 ====================
+        // =================================================================
+        
+        const emaInput = document.getElementById('last-hour-ema');
+        const openPriceInput = document.getElementById('open-price');
+        const strategiesContainer = document.getElementById('strategies-container');
+
+        const calculateTargetPrice = (ema, offset, type) => {
+            if (type === 'long') {
+                const roundedUp = Math.ceil(ema * 4) / 4;
+                return roundedUp - (offset / 4);
+            } else { // short
+                const roundedDown = Math.floor(ema * 4) / 4;
+                return roundedDown + (offset / 4);
+            }
+        };
+        
+        const renderStrategies = () => {
+            strategiesContainer.innerHTML = '';
+            const ema = parseFloat(emaInput.value);
+            const openPrice = parseFloat(openPriceInput.value);
+            const now = new Date();
+            const currentDay = now.toLocaleString('en-US', { weekday: 'long' });
+            const currentHour = now.getHours();
+
+            strategies.forEach(strategy => {
+                let targetPrice = 'N/A';
+                let highlightClass = '';
+
+                if (!isNaN(ema)) {
+                    targetPrice = calculateTargetPrice(ema, strategy.offset, strategy.type);
+
+                    if (!isNaN(openPrice)) {
+                        if (strategy.type === 'long' && openPrice > targetPrice) {
+                            highlightClass = 'highlight-green';
+                        } else if (strategy.type === 'short' && openPrice < targetPrice) {
+                            highlightClass = 'highlight-red';
+                        }
+                    }
+                    targetPrice = targetPrice.toFixed(2);
+                }
+                
+                const strategyDiv = document.createElement('div');
+                strategyDiv.className = 'strategy';
+
+                // Create Header
+                const header = document.createElement('div');
+                header.className = 'strategy-header';
+                header.innerHTML = `<h3>${strategy.name} <small>(${strategy.type})</small></h3>
+                                    <span class="target-price ${highlightClass}">Target: ${targetPrice}</span>`;
+                
+                // Create Hours Container
+                const hoursContainer = document.createElement('div');
+                hoursContainer.className = 'hours-container';
+                
+                const validHoursForDay = strategyHours[strategy.name]?.[currentDay] || [];
+
+                for (let hour = 9; hour <= 15; hour++) {
+                    if (hour >= currentHour) { // Only show current and future hours
+                        const isValid = validHoursForDay.includes(hour);
+                        const hourToggle = document.createElement('div');
+                        hourToggle.className = `hour-toggle ${isValid ? 'hour-valid' : 'hour-invalid'}`;
+                        hourToggle.textContent = `${hour}:00`;
+                        hourToggle.dataset.strategy = strategy.name;
+                        hourToggle.dataset.hour = hour;
+                        hourToggle.dataset.day = currentDay;
+                        hoursContainer.appendChild(hourToggle);
+                    }
+                }
+                
+                strategyDiv.appendChild(header);
+                strategyDiv.appendChild(hoursContainer);
+                strategiesContainer.appendChild(strategyDiv);
+            });
+        };
+
+        const toggleHourValidity = (e) => {
+            if (!e.target.classList.contains('hour-toggle')) return;
+            
+            const { strategy, hour, day } = e.target.dataset;
+            const hourNum = parseInt(hour, 10);
+            const dayHours = strategyHours[strategy]?.[day];
+
+            if (!dayHours) return;
+
+            const hourIndex = dayHours.indexOf(hourNum);
+            if (hourIndex > -1) {
+                dayHours.splice(hourIndex, 1); // Remove hour if it exists
+            } else {
+                dayHours.push(hourNum); // Add hour if it doesn't
+                dayHours.sort((a, b) => a - b); // Keep the array sorted
+            }
+            
+            renderStrategies(); // Re-render to show the change
+        };
+
+        const clearInputsAtTopOfTheHour = () => {
+            const now = new Date();
+            if (now.getMinutes() === 0 && now.getSeconds() === 0) {
+                emaInput.value = '';
+                openPriceInput.value = '';
+                renderStrategies();
+            }
+        };
+
+        // Event Listeners
+        emaInput.addEventListener('input', renderStrategies);
+        openPriceInput.addEventListener('input', renderStrategies);
+        strategiesContainer.addEventListener('click', toggleHourValidity);
+
+        // Initial render
+        renderStrategies();
+        
+        // Check to clear inputs every second
+        setInterval(clearInputsAtTopOfTheHour, 1000);
+        
+        // Refresh the entire view every minute to update the displayed hours
+        setInterval(renderStrategies, 60000); 
+    });
+    </script>
+</body>
+</html>
