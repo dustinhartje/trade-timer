@@ -236,7 +236,7 @@
                 // Create Header
                 const header = document.createElement('div');
                 header.className = 'strategy-header';
-                header.innerHTML = `<h3>${strategy.name} <small>(${strategy.type})</small></h3>
+                header.innerHTML = `<h3>${strategy.name} <small>(${strategy.type}) offset:$(strategy.offset)</small></h3>
                                     <span class="target-price ${highlightClass}">Target: ${targetPrice}</span>`;
                 
                 // Create Hours Container
