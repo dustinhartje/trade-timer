@@ -266,10 +266,15 @@
 
                 const ema = emaValues[strategy.emaKey];
 
+                // Determine if this hour is valid for this strategy
+                const validHoursForDay = strategyHours[strategy.name]?.[currentDay] || [];
+                const isCurrentHourValid = validHoursForDay.includes(currentHour);
+
                 if (!isNaN(ema)) {
                     targetPrice = calculateTargetPrice(ema, strategy.offset, strategy.type);
 
-                    if (!isNaN(openPrice)) {
+                    // Only highlight if both price criteria is met and this hour is valid
+                    if (!isNaN(openPrice) && isCurrentHourValid) {
                         if (strategy.type === 'long' && openPrice > targetPrice) {
                             highlightClass = 'highlight-green';
                         } else if (strategy.type === 'short' && openPrice < targetPrice) {
@@ -292,8 +297,6 @@
                 const hoursContainer = document.createElement('div');
                 hoursContainer.className = 'hours-container';
                 
-                const validHoursForDay = strategyHours[strategy.name]?.[currentDay] || [];
-
                 for (let hour = 9; hour <= 15; hour++) {
                     if (hour >= currentHour) { // Only show current and future hours
                         const isValid = validHoursForDay.includes(hour);
