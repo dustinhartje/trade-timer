@@ -132,8 +132,12 @@
 
         <div class="input-group">
             <div>
-                <label for="last-hour-ema">Last Hour EMA</label>
-                <input type="number" id="last-hour-ema" placeholder="e.g., 4550.75" step="0.01">
+                <label for="e1h9ema">e1h9ema</label>
+                <input type="number" id="e1h9ema" placeholder="e.g., 4550.75" step="0.01">
+            </div>
+            <div>
+                <label for="e1h20ema">e1h20ema</label>
+                <input type="number" id="e1h20ema" placeholder="e.g., 4560.25" step="0.01">
             </div>
             <div>
                 <label for="open-price">Open Price</label>
@@ -178,12 +182,13 @@
          * 'name': The display name of the strategy.
          * 'type': 'long' or 'short'.
          * 'offset': The integer value for the calculation.
+         * 'emaKey': Which EMA to use, must match the input id (e.g., "e1h9ema" or "e1h20ema").
          */
         const strategies = [
-            { name: "IRA Bounce", type: "long", offset: 0 },
-            { name: "IRA Reject", type: "short", offset: 40 },
-            { name: "Apex Bounce", type: "long", offset: 0 },
-            { name: "Apex Reject", type: "short", offset: 40 }
+            { name: "IRA Bounce", type: "long", offset: 0, emaKey: "e1h9ema" },
+            { name: "IRA Reject", type: "short", offset: 40, emaKey: "e1h9ema" },
+            { name: "Apex Bounce", type: "long", offset: 0, emaKey: "e1h20ema" },
+            { name: "Apex Reject", type: "short", offset: 40, emaKey: "e1h20ema" }
         ];
 
         /**
@@ -227,7 +232,10 @@
         // =================== 👨‍💻 CORE APPLICATION LOGIC 👨‍💻 ====================
         // =================================================================
         
-        const emaInput = document.getElementById('last-hour-ema');
+        const emaInputs = {
+            "e1h9ema": document.getElementById('e1h9ema'),
+            "e1h20ema": document.getElementById('e1h20ema')
+        };
         const openPriceInput = document.getElementById('open-price');
         const strategiesContainer = document.getElementById('strategies-container');
 
@@ -243,7 +251,10 @@
         
         const renderStrategies = () => {
             strategiesContainer.innerHTML = '';
-            const ema = parseFloat(emaInput.value);
+            const emaValues = {};
+            for (const key in emaInputs) {
+                emaValues[key] = parseFloat(emaInputs[key].value);
+            }
             const openPrice = parseFloat(openPriceInput.value);
             const now = new Date();
             const currentDay = now.toLocaleString('en-US', { weekday: 'long' });
@@ -252,6 +263,8 @@
             strategies.forEach(strategy => {
                 let targetPrice = 'N/A';
                 let highlightClass = '';
+
+                const ema = emaValues[strategy.emaKey];
 
                 if (!isNaN(ema)) {
                     targetPrice = calculateTargetPrice(ema, strategy.offset, strategy.type);
@@ -272,7 +285,7 @@
                 // Create Header
                 const header = document.createElement('div');
                 header.className = 'strategy-header';
-                header.innerHTML = `<h3>${strategy.name} <small>(${strategy.type}) offset:${strategy.offset}</small></h3>
+                header.innerHTML = `<h3>${strategy.name} <small>(${strategy.type}, offset:${strategy.offset}, EMA: ${strategy.emaKey})</small></h3>
                                     <span class="target-price ${highlightClass}">Target: ${targetPrice}</span>`;
                 
                 // Create Hours Container
@@ -329,7 +342,8 @@
         const clearInputsAtTopOfTheHour = () => {
             const now = new Date();
             if (now.getMinutes() === 0 && now.getSeconds() === 0) {
-                emaInput.value = '';
+                emaInputs["e1h9ema"].value = '';
+                emaInputs["e1h20ema"].value = '';
                 openPriceInput.value = '';
                 renderStrategies();
             }
@@ -358,7 +372,8 @@
         }
 
         // Event Listeners
-        emaInput.addEventListener('input', renderStrategies);
+        emaInputs["e1h9ema"].addEventListener('input', renderStrategies);
+        emaInputs["e1h20ema"].addEventListener('input', renderStrategies);
         openPriceInput.addEventListener('input', renderStrategies);
         strategiesContainer.addEventListener('click', toggleHourValidity);
 
@@ -400,7 +415,7 @@
                     <h1>All Hour Validity</h1>
             `;
             for (const strategy of strategies) {
-                html += `<h2>${strategy.name} <span class="offset">(${strategy.type}, offset:${strategy.offset})</span></h2>`;
+                html += `<h2>${strategy.name} <span class="offset">(${strategy.type}, offset:${strategy.offset}, EMA: ${strategy.emaKey})</span></h2>`;
                 html += `<table><thead><tr><th>Day</th>`;
                 for (let hour = 9; hour <= 15; hour++) {
                     html += `<th>${hour}:00</th>`;
