@@ -150,8 +150,7 @@
 
     <!-- Buzzer Audio (hidden) -->
     <audio id="buzzer-audio" preload="auto">
-        <source src="https://cdn.pixabay.com/audio/2022/10/16/audio_12b8b5d8a7.mp3" type="audio/mpeg">
-        <!-- Free buzzer sound from Pixabay, about 5 seconds. -->
+        <source src="tickingbuzzer_28sec.mp3" type="audio/mpeg">
         Your browser does not support the audio element.
     </audio>
 
@@ -341,8 +340,8 @@
         let hasBuzzedThisHour = false;
         function checkBuzzer() {
             const now = new Date();
-            // Play at xx:59:40-xx:59:44 (for a 5 sec 5s buzzer)
-            if (now.getMinutes() === 59 && now.getSeconds() >= 40 && now.getSeconds() < 45) {
+            // Play at xx:59:30-xx:59:34 (for a 28s ticking buzzer)
+            if (now.getMinutes() === 59 && now.getSeconds() >= 30 && now.getSeconds() < 34) {
                 if (!hasBuzzedThisHour) {
                     // Play buzzer (rewind in case)
                     try {
