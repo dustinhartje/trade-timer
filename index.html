@@ -185,10 +185,10 @@
          * 'emaKey': Which EMA to use, must match the input id (e.g., "e1h9ema" or "e1h20ema").
          */
         const strategies = [
-            { name: "IRA Bounce", type: "long", offset: 0, emaKey: "e1h9ema" },
+            { name: "IRA Bounce", type: "long", offset: -4, emaKey: "e1h9ema" },
             { name: "IRA Reject", type: "short", offset: 40, emaKey: "e1h9ema" },
-            { name: "Apex Bounce", type: "long", offset: 0, emaKey: "e1h20ema" },
-            { name: "Apex Reject", type: "short", offset: 40, emaKey: "e1h20ema" }
+            { name: "Apex Bounce", type: "long", offset: 4, emaKey: "e1h20ema" },
+            { name: "Apex Reject", type: "short", offset: 4, emaKey: "e1h20ema" }
         ];
 
         /**
@@ -199,32 +199,32 @@
          */
         let strategyHours = {
             "IRA Bounce": {
-                "Monday": [12],
+                "Monday": [],
                 "Tuesday": [11, 13],
                 "Wednesday": [10, 13, 14],
                 "Thursday": [9],
                 "Friday": [9, 10]
             },
             "IRA Reject": {
-                "Monday": [12],
+                "Monday": [12, 14],
                 "Tuesday": [9],
-                "Wednesday": [10],
+                "Wednesday": [10, 14],
                 "Thursday": [9, 10],
                 "Friday": [9, 10]
             },
             "Apex Bounce": {
-                "Monday": [],
-                "Tuesday": [11, 13],
-                "Wednesday": [10, 14],
-                "Thursday": [9],
-                "Friday": [9, 10]
+                "Monday": [12, 13],
+                "Tuesday": [11],
+                "Wednesday": [10, 13],
+                "Thursday": [10, 11],
+                "Friday": [9, 12]
             },
             "Apex Reject": {
-                "Monday": [9],
-                "Tuesday": [9],
-                "Wednesday": [9, 10],
+                "Monday": [12, 13],
+                "Tuesday": [11],
+                "Wednesday": [10, 13, 14],
                 "Thursday": [9, 10],
-                "Friday": [10]
+                "Friday": [9, 12]
             }
         };
 
