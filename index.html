@@ -410,6 +410,8 @@
                         .valid-long { background: #d4edda; color: #155724; }
                         .valid-short { background: #f8d7da; color: #dc3545; }
                         .invalid { background: #eee; color: #888; }
+                        .combined-valid { background: #b6e7b0; color: #155724; font-weight: bold; }
+                        .combined-invalid { background: #eee; color: #888; }
                         h2 { margin-top: 32px; }
                         .offset { font-size: 0.9em; color: #888; }
                     </style>
@@ -417,6 +419,30 @@
                 <body>
                     <h1>All Hour Validity</h1>
             `;
+
+            // --- Combined Chart ---
+            html += `<h2>All Hours Combined</h2>`;
+            html += `<table><thead><tr><th>Hour</th>`;
+            for (const day of weekdays) {
+                html += `<th>${day}</th>`;
+            }
+            html += `</tr></thead><tbody>`;
+            for (let hour = 9; hour <= 15; hour++) {
+                html += `<tr><td>${hour}:00</td>`;
+                for (const day of weekdays) {
+                    let isValid = false;
+                    for (const strategy of strategies) {
+                        const validHours = strategyHours[strategy.name]?.[day] || [];
+                        if (validHours.includes(hour)) {
+                            isValid = true;
+                            break;
+                        }
+                    }
+                    html += `<td class="${isValid ? 'combined-valid' : 'combined-invalid'}">${isValid ? '✓' : '✗'}</td>`;
+                }
+                html += `</tr>`;
+            }
+            html += `</tbody></table>`;
             for (const strategy of strategies) {
                 html += `<h2>${strategy.name} <span class="offset">(${strategy.type}, offset:${strategy.offset}, EMA: ${strategy.emaKey})</span></h2>`;
                 html += `<table><thead><tr><th>Hour</th>`;
