@@ -396,7 +396,7 @@
         // View All Hour Validity popup
         // ==============================
         function openAllHourValidityWindow() {
-            // Compose HTML for all strategies, days, and hours
+            // Compose HTML for all strategies, hours as rows and days as columns
             const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
             let html = `
                 <html>
@@ -419,15 +419,15 @@
             `;
             for (const strategy of strategies) {
                 html += `<h2>${strategy.name} <span class="offset">(${strategy.type}, offset:${strategy.offset}, EMA: ${strategy.emaKey})</span></h2>`;
-                html += `<table><thead><tr><th>Day</th>`;
-                for (let hour = 9; hour <= 15; hour++) {
-                    html += `<th>${hour}:00</th>`;
+                html += `<table><thead><tr><th>Hour</th>`;
+                for (const day of weekdays) {
+                    html += `<th>${day}</th>`;
                 }
                 html += `</tr></thead><tbody>`;
-                for (const day of weekdays) {
-                    html += `<tr><td>${day}</td>`;
-                    const validHours = strategyHours[strategy.name]?.[day] || [];
-                    for (let hour = 9; hour <= 15; hour++) {
+                for (let hour = 9; hour <= 15; hour++) {
+                    html += `<tr><td>${hour}:00</td>`;
+                    for (const day of weekdays) {
+                        const validHours = strategyHours[strategy.name]?.[day] || [];
                         const valid = validHours.includes(hour);
                         let tdClass = "";
                         if (valid) {
