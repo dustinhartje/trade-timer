@@ -357,10 +357,20 @@
         let hasBuzzedThisHour = false;
         function checkBuzzer() {
             const now = new Date();
-            // Play at xx:59:30-xx:59:34 (for a 28s ticking buzzer)
-            if (now.getMinutes() === 59 && now.getSeconds() >= 30 && now.getSeconds() < 34) {
+            const currentDay = now.toLocaleString('en-US', { weekday: 'long' });
+            const currentHour = now.getHours();
+            const nextHour = currentHour + 1;
+            let hourIsValid = false;
+            for (const strategy of strategies) {
+                const validHours = strategyHours[strategy.name]?.[currentDay] || [];
+                if (validHours.includes(currentHour) || validHours.includes(nextHour)) {
+                    hourIsValid = true;
+                    break;
+                }
+            }
+            // Play at xx:59:30-xx:59:34 (for a 28s ticking buzzer) only if valid
+            if (hourIsValid && now.getMinutes() === 59 && now.getSeconds() >= 30 && now.getSeconds() < 34) {
                 if (!hasBuzzedThisHour) {
-                    // Play buzzer (rewind in case)
                     try {
                         buzzer.currentTime = 0;
                         buzzer.play();
