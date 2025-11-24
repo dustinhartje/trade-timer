@@ -187,8 +187,8 @@
         const strategies = [
             { name: "IRA Bounce", type: "long", offset: 0, emaKey: "e1h9ema" },
             { name: "IRA Reject", type: "short", offset: 40, emaKey: "e1h9ema" },
-            { name: "Apex Bounce", type: "long", offset: 4, emaKey: "e1h20ema" },
-            { name: "Apex Reject", type: "short", offset: 16, emaKey: "e1h20ema" }
+            { name: "Apex Bounce", type: "long", offset: 40, emaKey: "e1h9ema" },
+            { name: "Apex Reject", type: "short", offset: 40, emaKey: "e1h9ema" }
         ];
 
         /**
@@ -199,32 +199,32 @@
          */
         let strategyHours = {
             "IRA Bounce": {
-                "Monday": [],
+                "Monday": [10],
                 "Tuesday": [11, 13],
                 "Wednesday": [10, 13, 14],
                 "Thursday": [],
                 "Friday": [9, 10]
             },
             "IRA Reject": {
-                "Monday": [12, 14],
+                "Monday": [],
                 "Tuesday": [9],
                 "Wednesday": [10, 14],
-                "Thursday": [9, 14],
+                "Thursday": [9, 10, 12, 14],
                 "Friday": [9, 10]
             },
             "Apex Bounce": {
-                "Monday": [12],
-                "Tuesday": [11, 14],
-                "Wednesday": [10],
-                "Thursday": [11],
-                "Friday": [9, 10, 12, 15]
+                "Monday": [9, 11, 12, 14],
+                "Tuesday": [10, 11, 12],
+                "Wednesday": [9, 10, 12],
+                "Thursday": [],
+                "Friday": [9, 10, 12]
             },
             "Apex Reject": {
-                "Monday": [12],
-                "Tuesday": [],
-                "Wednesday": [10],
-                "Thursday": [10, 11, 14],
-                "Friday": [12, 15]
+                "Monday": [11, 12, 14],
+                "Tuesday": [9, 12],
+                "Wednesday": [9, 10, 12],
+                "Thursday": [9, 10, 12],
+                "Friday": [10, 12]
             }
         };
 
