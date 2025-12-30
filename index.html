@@ -70,6 +70,17 @@
             margin: 0;
             font-size: 1.2rem;
         }
+        .target-price-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+        .strategy-name-right {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #555;
+        }
         .target-price {
             font-size: 1.1rem;
             font-weight: bold;
@@ -291,7 +302,10 @@
                 const header = document.createElement('div');
                 header.className = 'strategy-header';
                 header.innerHTML = `<h3>${strategy.name} <small>(${strategy.type}, offset:${strategy.offset}, EMA: ${strategy.emaKey})</small></h3>
-                                    <span class="target-price ${highlightClass}">Target: ${targetPrice}</span>`;
+                                    <div class="target-price-container">
+                                        <div class="strategy-name-right">${strategy.name} ${!isNaN(ema) ? ema.toFixed(2) + ' ' + strategy.emaKey : ''}</div>
+                                        <span class="target-price ${highlightClass}">Target: ${targetPrice}</span>
+                                    </div>`;
                 
                 // Create Hours Container
                 const hoursContainer = document.createElement('div');
