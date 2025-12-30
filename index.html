@@ -303,7 +303,7 @@
                 header.className = 'strategy-header';
                 header.innerHTML = `<h3>${strategy.name} <small>(${strategy.type}, offset:${strategy.offset}, EMA: ${strategy.emaKey})</small></h3>
                                     <div class="target-price-container">
-                                        <div class="strategy-name-right">${strategy.name} ${!isNaN(ema) ? ema.toFixed(2) : ''}</div>
+                                        <div class="strategy-name-right">${strategy.name} ${!isNaN(ema) ? ema.toFixed(2) + ' ' + strategy.emaKey : ''}</div>
                                         <span class="target-price ${highlightClass}">Target: ${targetPrice}</span>
                                     </div>`;
                 
