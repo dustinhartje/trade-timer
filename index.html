@@ -173,13 +173,29 @@
     document.addEventListener('DOMContentLoaded', () => {
 
         // =================== 🕒 DATE & TIME DISPLAY ===================
+
+        // Returns a Date whose .getHours()/.getMinutes()/.getSeconds() reflect Eastern Time
+        function getNowET() {
+            const now = new Date();
+            const etParts = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/New_York',
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false
+            }).formatToParts(now);
+            const p = {};
+            etParts.forEach(({ type, value }) => { p[type] = value; });
+            return new Date(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`);
+        }
+
         const dateTimeDisplay = document.getElementById('date-time-display');
         function updateDateTime() {
             const now = new Date();
-            const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
-            const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            dateTimeDisplay.textContent = `${dayOfWeek}, ${dateStr} — ${timeStr}`;
+            const etOpts = { timeZone: 'America/New_York' };
+            const dayOfWeek = now.toLocaleDateString('en-US', { ...etOpts, weekday: 'long' });
+            const dateStr = now.toLocaleDateString('en-US', { ...etOpts, year: 'numeric', month: 'long', day: 'numeric' });
+            const timeStr = now.toLocaleTimeString('en-US', { ...etOpts, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            dateTimeDisplay.textContent = `${dayOfWeek}, ${dateStr} — ${timeStr} ET`;
         }
         updateDateTime();
         setInterval(updateDateTime, 1000);
@@ -267,7 +283,7 @@
                 emaValues[key] = parseFloat(emaInputs[key].value);
             }
             const openPrice = parseFloat(openPriceInput.value);
-            const now = new Date();
+            const now = getNowET();
             const currentDay = now.toLocaleString('en-US', { weekday: 'long' });
             const currentHour = now.getHours();
 
@@ -357,7 +373,7 @@
         };
 
         const clearInputsAtTopOfTheHour = () => {
-            const now = new Date();
+            const now = getNowET();
             if (now.getMinutes() === 0 && now.getSeconds() === 0) {
                 emaInputs["e1h9ema"].value = '';
                 emaInputs["e1h20ema"].value = '';
@@ -370,7 +386,7 @@
         const buzzer = document.getElementById('buzzer-audio');
         let hasBuzzedThisHour = false;
         function checkBuzzer() {
-            const now = new Date();
+            const now = getNowET();
             const currentDay = now.toLocaleString('en-US', { weekday: 'long' });
             const currentHour = now.getHours();
             const nextHour = currentHour + 1;
