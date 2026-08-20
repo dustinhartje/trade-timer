@@ -63,18 +63,51 @@
         .strategy-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
+            gap: 16px;
             margin-bottom: 10px;
+        }
+        .strategy-title-wrap {
+            min-width: 0;
+            flex: 1;
         }
         .strategy-header h3 {
             margin: 0;
             font-size: 1.2rem;
+            line-height: 1.2;
+        }
+        .strategy-config-line {
+            display: block;
+            margin-top: 4px;
+            color: #4b5563;
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+        }
+        .strategy-gating {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            color: #374151;
+            font-size: 0.82rem;
+            line-height: 1.4;
+        }
+        .strategy-gating-label {
+            font-weight: 700;
+            color: #111827;
         }
         .target-price-container {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
             gap: 4px;
+            flex-shrink: 0;
         }
         .strategy-name-right {
             font-size: 0.9rem;
@@ -191,13 +224,18 @@
             background-color: #fff5f5;
         }
         .strategy--disabled {
-            opacity: 0.55;
+            opacity: 0.72;
         }
         .strategy-disabled-note {
-            color: #856404;
-            font-size: 0.85rem;
+            background: #fff7d6;
+            border: 1px solid #f0d780;
+            border-left: 4px solid #a67c00;
+            color: #5b4a10;
+            font-size: 0.84rem;
             font-weight: 600;
-            margin-top: 6px;
+            margin-top: 10px;
+            padding: 8px 10px;
+            border-radius: 6px;
         }
     </style>
 </head>
@@ -327,7 +365,8 @@
                 indFilterLabels: Array.isArray(entry.ind_filter_labels)
                     ? entry.ind_filter_labels : [],
                 filters: [],
-                disabled: false
+                disabled: false,
+                disabledReason: null
             });
             strategyHours[entry.name] = Object.assign({}, entry.valid_hours);
         });
@@ -399,22 +438,47 @@
         // Resolve each strategy's label references; unresolved, mismatched,
         // or unsupported references disable the strategy entirely.
         const referencedIndIds = [];
+        const formatRangeValue = (value) => {
+            const numericValue = Number(value);
+            if (Number.isInteger(numericValue)) {
+                return String(numericValue);
+            }
+            return numericValue.toFixed(2).replace(/\.0+$|(?<=\.\d)0+$/g, '');
+        };
+        const formatRange = ([low, high]) =>
+            `${formatRangeValue(low)}-${formatRangeValue(high)}`;
+        const formatRuleRanges = (ranges) => ranges
+            .map(formatRange)
+            .join(', ');
+        const formatFriendlyGate = (filter) => {
+            const indName = filter.indId.includes('RSI') ? 'RSI' : filter.indId;
+            if (filter.mode === 'exclude') {
+                return `${indName} ranges to exclude: ${formatRuleRanges(filter.ranges)}`;
+            }
+            return `${indName} allowed only for ranges: ${formatRuleRanges(filter.ranges)}`;
+        };
         strategies.forEach(strategy => {
             strategy.indFilterLabels.forEach(label => {
                 const filter = filtersByLabel[label];
                 if (!filter) {
-                    configErrors.push(`${strategy.name}: references unknown ind_filter label ${JSON.stringify(label)}.`);
+                    const reason = `${strategy.name}: references unknown ind_filter label ${JSON.stringify(label)}.`;
+                    configErrors.push(reason);
                     strategy.disabled = true;
+                    strategy.disabledReason = reason;
                     return;
                 }
                 if (filter.tradeDirection !== strategy.type) {
-                    configErrors.push(`${strategy.name} is "${strategy.type}" but ind_filter ${JSON.stringify(label)} is "${filter.tradeDirection}".`);
+                    const reason = `${strategy.name} is "${strategy.type}" but ind_filter ${JSON.stringify(label)} is "${filter.tradeDirection}".`;
+                    configErrors.push(reason);
                     strategy.disabled = true;
+                    strategy.disabledReason = reason;
                     return;
                 }
                 if (!SUPPORTED_INDICATORS[filter.indId]) {
-                    configWarnings.push(`${strategy.name} is disabled: ind_id ${JSON.stringify(filter.indId)} is not supported yet.`);
+                    const reason = `${strategy.name} is disabled: ind_id ${JSON.stringify(filter.indId)} is not supported yet.`;
+                    configWarnings.push(reason);
                     strategy.disabled = true;
+                    strategy.disabledReason = `${reason} Gating rule: ${formatFriendlyGate(filter)}.`;
                     return;
                 }
                 strategy.filters.push(filter);
@@ -456,6 +520,31 @@
         // =================================================================
 
         const strategiesContainer = document.getElementById('strategies-container');
+
+        function isValueInRanges(value, ranges) {
+            return ranges.some(([low, high]) => value >= low && value <= high);
+        }
+
+        function getStrategyGatingReasons(strategy) {
+            const reasons = [];
+            strategy.filters.forEach(filter => {
+                const indicatorState = indicatorInputs[filter.indId];
+                if (!indicatorState || indicatorState.value === null || indicatorState.value === undefined) {
+                    return;
+                }
+                const currentValue = Number(indicatorState.value);
+                const matchingRanges = filter.ranges.filter(([low, high]) =>
+                    currentValue >= low && currentValue <= high);
+                const inRange = matchingRanges.length > 0;
+                if (filter.mode === 'exclude' && inRange) {
+                    const matchedRange = matchingRanges[0];
+                    reasons.push(`${filter.indId.includes('RSI') ? 'RSI' : filter.indId} ${formatRangeValue(currentValue)} is excluded by filter range ${formatRange(matchedRange)}`);
+                } else if (filter.mode === 'include' && !inRange) {
+                    reasons.push(`${filter.indId.includes('RSI') ? 'RSI' : filter.indId} ${formatRangeValue(currentValue)} is outside the allowed range ${formatRuleRanges(filter.ranges)}`);
+                }
+            });
+            return reasons;
+        }
 
         /**
          * One shared indicator input per unique ind_id referenced by an
@@ -592,6 +681,9 @@
 
                 const ema = emaValues[strategy.emaKey];
                 const openPrice = openPrices[strategy.emaKey];
+                const gatingReasons = getStrategyGatingReasons(strategy);
+                const isGatedDisabled = gatingReasons.length > 0;
+                const isStrategyDisabled = strategy.disabled || isGatedDisabled;
 
                 // Determine if this hour is valid for this strategy
                 const validHoursForDay = strategyHours[strategy.name]?.[currentDay] || [];
@@ -601,7 +693,7 @@
                     targetPrice = calculateTargetPrice(ema, strategy.offset, strategy.type);
 
                     // Only highlight if both price criteria is met and this hour is valid
-                    if (!strategy.disabled && !isNaN(openPrice) && isCurrentHourValid) {
+                    if (!isStrategyDisabled && !isNaN(openPrice) && isCurrentHourValid) {
                         if (strategy.type === 'long' && openPrice > targetPrice) {
                             highlightClass = 'highlight-green';
                         } else if (strategy.type === 'short' && openPrice < targetPrice) {
@@ -613,18 +705,36 @@
 
                 const strategyDiv = document.createElement('div');
                 strategyDiv.className = 'strategy'
-                    + (strategy.disabled ? ' strategy--disabled' : '');
+                    + (isStrategyDisabled ? ' strategy--disabled' : '');
 
-                // Create Header
+                const configSummary = `${strategy.type}, offset ${strategy.offset}`;
+                const gateSummary = (strategy.filters.length > 0)
+                    ? strategy.filters.map(formatFriendlyGate).join(' • ')
+                    : 'No additional gating rules configured.';
+
                 const header = document.createElement('div');
                 header.className = 'strategy-header';
-                header.innerHTML = `<h3>${strategy.name} <small>(${strategy.type}, offset:${strategy.offset}, EMA: ${strategy.emaKey})</small></h3>
-                                    <div class="target-price-container">
-                                        <div class="strategy-name-right">${strategy.name} ${!isNaN(ema) ? ema.toFixed(2) + ' ' + strategy.emaKey : ''}</div>
-                                        <span class="target-price ${highlightClass}">Target: ${targetPrice}</span>
-                                    </div>`;
 
-                // Create Hours Container
+                const titleWrap = document.createElement('div');
+                titleWrap.className = 'strategy-title-wrap';
+                titleWrap.innerHTML = `
+                    <h3>${strategy.name}</h3>
+                    <span class="strategy-config-line">${configSummary}</span>
+                    <div class="strategy-gating">
+                        <span>${gateSummary}</span>
+                    </div>
+                `;
+
+                const targetContainer = document.createElement('div');
+                targetContainer.className = 'target-price-container';
+                targetContainer.innerHTML = `
+                    <div class="strategy-name-right">${!isNaN(ema) ? ema.toFixed(2) + ' ' + strategy.emaKey : 'EMA n/a'}</div>
+                    <span class="target-price ${highlightClass}">Target: ${targetPrice}</span>
+                `;
+
+                header.appendChild(titleWrap);
+                header.appendChild(targetContainer);
+
                 const hoursContainer = document.createElement('div');
                 hoursContainer.className = 'hours-container';
 
@@ -654,10 +764,12 @@
                 }
 
                 strategyDiv.appendChild(header);
-                if (strategy.disabled) {
+                if (isStrategyDisabled) {
                     const note = document.createElement('div');
                     note.className = 'strategy-disabled-note';
-                    note.textContent = 'Disabled by configuration \u2014 no trading signals.';
+                    note.textContent = strategy.disabledReason ||
+                        gatingReasons.join(' · ') ||
+                        'Disabled by configuration — no trading signals.';
                     strategyDiv.appendChild(note);
                 }
                 strategyDiv.appendChild(hoursContainer);
