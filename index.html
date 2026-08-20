@@ -25,6 +25,91 @@
             letter-spacing: 0.5px;
             font-weight: 500;
         }
+        .date-time-controls {
+            text-align: center;
+            margin-bottom: 18px;
+        }
+        .date-time-link {
+            color: #0d6efd;
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .date-time-link--close {
+            color: #b42318;
+            font-weight: 700;
+        }
+        .simulation-banner {
+            display: none;
+            background: #fff3cd;
+            border: 2px solid #b42318;
+            color: #7a4a00;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin: 0 0 18px;
+            font-weight: 800;
+            text-align: center;
+            letter-spacing: 0.02em;
+            box-shadow: inset 0 0 0 1px rgba(180, 35, 24, 0.12);
+        }
+        .simulation-warning {
+            margin-bottom: 12px;
+            color: #b42318;
+        }
+        .simulation-close-wrap {
+            margin-bottom: 10px;
+        }
+        .simulation-close-link {
+            color: #b42318;
+            font-weight: 700;
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .sim-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .sim-form label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-weight: 600;
+            color: #7a4a00;
+        }
+        .sim-form select,
+        .sim-form input {
+            padding: 6px 8px;
+            border: 1px solid #cfb246;
+            border-radius: 6px;
+            font-size: 0.86rem;
+            background: #fffdf5;
+            color: #4a3410;
+        }
+        .sim-time-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sim-toggle {
+            border: 1px solid #cfb246;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #4a3410;
+            background: #fff8de;
+            cursor: pointer;
+            min-width: 46px;
+        }
+        .sim-suffix {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #7a4a00;
+        }
         .container {
             background: #fff;
             padding: 20px;
@@ -119,6 +204,27 @@
             font-weight: bold;
             padding: 5px 10px;
             border-radius: 4px;
+        }
+        .target-price-simulated-valid {
+            background-color: #fff3cd !important;
+            border: 2px solid #b42318;
+            color: #7a4a00;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            max-width: 138px;
+            white-space: normal;
+            text-align: center;
+            line-height: 1.15;
+        }
+        .target-price-sim-warning {
+            color: #b42318;
+            font-size: 0.66rem;
+            font-weight: 700;
+            line-height: 1.15;
+            display: block;
+            white-space: normal;
         }
         .hours-container {
             display: flex;
@@ -244,6 +350,62 @@
     <div class="date-time-display" id="date-time-display">
         <!-- Current date and time will be rendered here -->
     </div>
+    <div class="date-time-controls">
+        <a href="#" class="date-time-link" id="simulation-toggle-link">Simulate alternate day and time</a>
+    </div>
+
+    <div id="simulation-banner" class="simulation-banner">
+        <div id="simulation-warning" class="simulation-warning">
+            SIMULATION MODE ACTIVE — Do not trade until simulated mode has
+            been turned off.
+        </div>
+        <div id="simulation-close-wrap" class="simulation-close-wrap">
+            <a href="#" id="simulation-close-link" class="simulation-close-link">
+                Close alternate day and time simulation
+            </a>
+        </div>
+        <div class="sim-form">
+            <select id="simulation-day" aria-label="Day of week">
+                <option value="Sunday">Sunday</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+            </select>
+            <div class="sim-time-controls">
+                <select id="simulation-hour" aria-label="Time">
+                    <option value="12:00">12:00</option>
+                    <option value="12:30">12:30</option>
+                    <option value="1:00">1:00</option>
+                    <option value="1:30">1:30</option>
+                    <option value="2:00">2:00</option>
+                    <option value="2:30">2:30</option>
+                    <option value="3:00">3:00</option>
+                    <option value="3:30">3:30</option>
+                    <option value="4:00">4:00</option>
+                    <option value="4:30">4:30</option>
+                    <option value="5:00">5:00</option>
+                    <option value="5:30">5:30</option>
+                    <option value="6:00">6:00</option>
+                    <option value="6:30">6:30</option>
+                    <option value="7:00">7:00</option>
+                    <option value="7:30">7:30</option>
+                    <option value="8:00">8:00</option>
+                    <option value="8:30">8:30</option>
+                    <option value="9:00">9:00</option>
+                    <option value="9:30">9:30</option>
+                    <option value="10:00">10:00</option>
+                    <option value="10:30">10:30</option>
+                    <option value="11:00">11:00</option>
+                    <option value="11:30">11:30</option>
+                </select>
+                <button id="simulation-ampm-toggle" class="sim-toggle" type="button">PM</button>
+                <span class="sim-suffix">(ET)</span>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <h1>Trade Timer ⏱️</h1>
@@ -276,9 +438,61 @@
 
         // =================== 🕒 DATE & TIME DISPLAY ===================
 
-        // Returns a Date whose .getHours()/.getMinutes()/.getSeconds() reflect Eastern Time
+        const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const simulationState = {
+            enabled: false,
+            day: 'Monday',
+            hour12: 12,
+            minute: 0,
+            ampm: 'PM'
+        };
+
+        function formatTwoDigits(value) {
+            return String(value).padStart(2, '0');
+        }
+
+        function formatCustomTimeValue(hour12, minute) {
+            return `${Number(hour12)}:${formatTwoDigits(minute)}`;
+        }
+
+        function parseHourMinuteSlot(value) {
+            const parts = (value || '').split(':');
+            if (parts.length !== 2) return null;
+            const hour = Number(parts[0]);
+            const minute = Number(parts[1]);
+            if (!Number.isInteger(hour) || hour < 1 || hour > 12) return null;
+            if (!Number.isInteger(minute) || (minute !== 0 && minute !== 30)) return null;
+            return { hour12: hour, minute };
+        }
+
+        function getSimulationHour24() {
+            let hour24 = Number(simulationState.hour12) % 12;
+            if (simulationState.ampm === 'PM') {
+                hour24 += 12;
+            }
+            return hour24;
+        }
+
+        function getSimulationDate() {
+            const realNow = new Date();
+            const realDayIndex = realNow.toLocaleDateString('en-US', {
+                timeZone: 'America/New_York', weekday: 'long'
+            });
+            const targetIndex = WEEKDAYS.indexOf(simulationState.day);
+            const currentIndex = WEEKDAYS.indexOf(realDayIndex);
+            const daysAgo = (currentIndex - targetIndex + 7) % 7;
+            const simulated = new Date(realNow.getTime());
+            simulated.setDate(realNow.getDate() - daysAgo);
+            const hour24 = getSimulationHour24();
+            simulated.setHours(hour24, simulationState.minute, 0, 0);
+            return new Date(
+                `${simulated.getFullYear()}-${String(simulated.getMonth() + 1).padStart(2, '0')}-${String(simulated.getDate()).padStart(2, '0')}`
+                + `T${String(hour24).padStart(2, '0')}:${formatTwoDigits(simulationState.minute)}:00`
+            );
+        }
+
         function getNowET() {
-            const now = new Date();
+            const now = simulationState.enabled ? getSimulationDate() : new Date();
             const etParts = new Intl.DateTimeFormat('en-US', {
                 timeZone: 'America/New_York',
                 year: 'numeric', month: '2-digit', day: '2-digit',
@@ -291,15 +505,93 @@
         }
 
         const dateTimeDisplay = document.getElementById('date-time-display');
+        const simulationBanner = document.getElementById('simulation-banner');
+        const simulationWarning = document.getElementById('simulation-warning');
+        const simulationCloseWrap = document.getElementById('simulation-close-wrap');
+        const simulationCloseLink = document.getElementById('simulation-close-link');
+        const simulationDayInput = document.getElementById('simulation-day');
+        const simulationHourInput = document.getElementById('simulation-hour');
+        const simulationAmPmToggle = document.getElementById('simulation-ampm-toggle');
+        const simulationToggleLink = document.getElementById('simulation-toggle-link');
+
+        function disableSimulationMode() {
+            simulationState.enabled = false;
+            syncSimulationControls();
+            renderStrategies();
+            updateDateTime();
+        }
+
+        function syncSimulationControls() {
+            simulationDayInput.value = simulationState.day;
+            simulationHourInput.value = formatCustomTimeValue(
+                simulationState.hour12,
+                simulationState.minute
+            );
+            simulationAmPmToggle.textContent = simulationState.ampm;
+            simulationBanner.style.display = simulationState.enabled
+                ? 'block' : 'none';
+            simulationWarning.style.display = 'block';
+            simulationCloseWrap.style.display = simulationState.enabled
+                ? 'block' : 'none';
+            simulationToggleLink.style.display = simulationState.enabled
+                ? 'none' : 'inline';
+        }
+
         function updateDateTime() {
-            const now = new Date();
+            const now = getNowET();
             const etOpts = { timeZone: 'America/New_York' };
             const dayOfWeek = now.toLocaleDateString('en-US', { ...etOpts, weekday: 'long' });
             const dateStr = now.toLocaleDateString('en-US', { ...etOpts, year: 'numeric', month: 'long', day: 'numeric' });
             const timeStr = now.toLocaleTimeString('en-US', { ...etOpts, hour: '2-digit', minute: '2-digit', second: '2-digit' });
             dateTimeDisplay.textContent = `${dayOfWeek}, ${dateStr} — ${timeStr} ET`;
         }
+
+        simulationToggleLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            simulationState.enabled = true;
+            simulationState.day = 'Monday';
+            simulationState.hour12 = 12;
+            simulationState.minute = 0;
+            simulationState.ampm = 'PM';
+            syncSimulationControls();
+            renderStrategies();
+            updateDateTime();
+        });
+
+        simulationCloseLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            disableSimulationMode();
+        });
+
+        simulationDayInput.addEventListener('change', () => {
+            simulationState.day = simulationDayInput.value;
+            simulationState.enabled = true;
+            syncSimulationControls();
+            renderStrategies();
+            updateDateTime();
+        });
+
+        simulationHourInput.addEventListener('change', () => {
+            const parsed = parseHourMinuteSlot(simulationHourInput.value);
+            if (!parsed) return;
+            simulationState.hour12 = parsed.hour12;
+            simulationState.minute = parsed.minute;
+            simulationState.enabled = true;
+            syncSimulationControls();
+            renderStrategies();
+            updateDateTime();
+        });
+
+        simulationAmPmToggle.addEventListener('click', () => {
+            simulationState.ampm = simulationState.ampm === 'AM' ? 'PM' : 'AM';
+            simulationState.enabled = true;
+            syncSimulationControls();
+            renderStrategies();
+            updateDateTime();
+        });
+
         updateDateTime();
+        syncSimulationControls();
         setInterval(updateDateTime, 1000);
 
         // =================================================================
@@ -703,6 +995,14 @@
                     targetPrice = targetPrice.toFixed(2);
                 }
 
+                const targetClass = (simulationState.enabled && highlightClass)
+                    ? 'target-price-simulated-valid'
+                    : highlightClass;
+                const simulatedWarningHtml =
+                    (simulationState.enabled && highlightClass)
+                        ? '<span class="target-price-sim-warning">Simulation mode active, do not trade this!</span>'
+                        : '';
+
                 const strategyDiv = document.createElement('div');
                 strategyDiv.className = 'strategy'
                     + (isStrategyDisabled ? ' strategy--disabled' : '');
@@ -729,7 +1029,7 @@
                 targetContainer.className = 'target-price-container';
                 targetContainer.innerHTML = `
                     <div class="strategy-name-right">${!isNaN(ema) ? ema.toFixed(2) + ' ' + strategy.emaKey : 'EMA n/a'}</div>
-                    <span class="target-price ${highlightClass}">Target: ${targetPrice}</span>
+                    <span class="target-price ${targetClass}">Target: ${targetPrice}${simulatedWarningHtml}</span>
                 `;
 
                 header.appendChild(titleWrap);
@@ -797,9 +1097,14 @@
             renderStrategies(); // Re-render to show the change
         };
 
+        let lastInputResetStamp = null;
         const clearInputsAtTopOfTheHour = () => {
+            if (simulationState.enabled) return;
             const now = getNowET();
             if (now.getMinutes() === 0 && now.getSeconds() === 0) {
+                const hourStamp = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}`;
+                if (hourStamp === lastInputResetStamp) return;
+                lastInputResetStamp = hourStamp;
                 Object.values(emaInputs).forEach(input => { input.value = ''; });
                 Object.values(openPriceInputs).forEach(input => { input.value = ''; });
                 clearStaleIndicatorInputs(now);
