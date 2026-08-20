@@ -164,6 +164,41 @@
             padding-left: 20px;
             font-weight: normal;
         }
+        .config-banner--warning {
+            background-color: #fff3cd;
+            border-color: #ffeeba;
+            color: #856404;
+        }
+        .indicator-banner {
+            background-color: #cce5ff;
+            border: 2px solid #b8daff;
+            color: #004085;
+            border-radius: 6px;
+            padding: 14px 15px;
+            margin-bottom: 18px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            text-align: center;
+        }
+        .input-warning {
+            color: #dc3545;
+            font-size: 0.8rem;
+            margin-top: 4px;
+            max-width: 150px;
+        }
+        .input-group input.input-invalid {
+            border-color: #dc3545;
+            background-color: #fff5f5;
+        }
+        .strategy--disabled {
+            opacity: 0.55;
+        }
+        .strategy-disabled-note {
+            color: #856404;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 6px;
+        }
     </style>
 </head>
 <body>
@@ -176,7 +211,10 @@
         <h1>Trade Timer ⏱️</h1>
 
         <div class="config-banner" id="config-error" style="display:none"></div>
+        <div class="config-banner config-banner--warning" id="config-warning" style="display:none"></div>
+        <div class="indicator-banner" id="indicator-banner" style="display:none"></div>
 
+        <div class="input-group" id="indicator-input-group"></div>
         <div class="input-group" id="input-group"></div>
 
         <div id="strategies-container"></div>
@@ -287,28 +325,213 @@
                 offset: entry.offset,
                 emaKey: entry.ema_key,
                 indFilterLabels: Array.isArray(entry.ind_filter_labels)
-                    ? entry.ind_filter_labels : []
+                    ? entry.ind_filter_labels : [],
+                filters: [],
+                disabled: false
             });
             strategyHours[entry.name] = Object.assign({}, entry.valid_hours);
         });
 
-        const configErrorBanner = document.getElementById('config-error');
-        function renderConfigErrors() {
-            if (configErrors.length === 0) {
-                configErrorBanner.style.display = 'none';
+        /**
+         * Indicators this page knows how to collect and evaluate.  An
+         * ind_filter naming an ind_id absent from this registry is reported
+         * as unsupported and disables any strategy referencing it.
+         */
+        const SUPPORTED_INDICATORS = {
+            "ES_eth_e1d_RSI_close_p14_swilder": {
+                inputLabel: "Yesterday e1d RSI Closing Value",
+                min: 0,
+                max: 100,
+                placeholder: "0 - 100, decimals ok"
+            }
+        };
+
+        const configWarnings = [];
+
+        // Index ind_filters by label so strategies can resolve references.
+        const filtersByLabel = {};
+        const rawFilters = (rawConfig && Array.isArray(rawConfig.ind_filters))
+            ? rawConfig.ind_filters : [];
+        rawFilters.forEach((flt, index) => {
+            const label = (flt && flt.label) ? flt.label : `ind_filter #${index + 1}`;
+            if (!flt || !flt.label) {
+                configErrors.push(`${label}: missing "label".`);
                 return;
             }
-            configErrorBanner.innerHTML = 'Configuration problem in config.js'
-                + '<ul>' + configErrors.map(msg => `<li>${msg}</li>`).join('') + '</ul>';
-            configErrorBanner.style.display = 'block';
+            if (filtersByLabel[flt.label]) {
+                configErrors.push(`${label}: duplicate ind_filter label.`);
+                return;
+            }
+            if (!flt.ind_id) {
+                configErrors.push(`${label}: missing "ind_id".`);
+                return;
+            }
+            if (flt.mode !== 'include' && flt.mode !== 'exclude') {
+                configErrors.push(`${label}: "mode" must be "include" or "exclude", got ${JSON.stringify(flt.mode)}.`);
+                return;
+            }
+            if (flt.trade_direction !== 'long' && flt.trade_direction !== 'short') {
+                configErrors.push(`${label}: "trade_direction" must be "long" or "short", got ${JSON.stringify(flt.trade_direction)}.`);
+                return;
+            }
+            const ranges = Array.isArray(flt.ranges) ? flt.ranges : null;
+            if (!ranges || ranges.length === 0) {
+                configErrors.push(`${label}: "ranges" must be a non-empty list.`);
+                return;
+            }
+            const badRange = ranges.find(r =>
+                !Array.isArray(r) || r.length !== 2
+                || typeof r[0] !== 'number' || typeof r[1] !== 'number'
+                || r[0] >= r[1]);
+            if (badRange) {
+                configErrors.push(`${label}: each range must be [low, high] with low < high; got ${JSON.stringify(badRange)}.`);
+                return;
+            }
+            filtersByLabel[flt.label] = {
+                label: flt.label,
+                indId: flt.ind_id,
+                mode: flt.mode,
+                tradeDirection: flt.trade_direction,
+                ranges: ranges
+            };
+        });
+
+        // Resolve each strategy's label references; unresolved, mismatched,
+        // or unsupported references disable the strategy entirely.
+        const referencedIndIds = [];
+        strategies.forEach(strategy => {
+            strategy.indFilterLabels.forEach(label => {
+                const filter = filtersByLabel[label];
+                if (!filter) {
+                    configErrors.push(`${strategy.name}: references unknown ind_filter label ${JSON.stringify(label)}.`);
+                    strategy.disabled = true;
+                    return;
+                }
+                if (filter.tradeDirection !== strategy.type) {
+                    configErrors.push(`${strategy.name} is "${strategy.type}" but ind_filter ${JSON.stringify(label)} is "${filter.tradeDirection}".`);
+                    strategy.disabled = true;
+                    return;
+                }
+                if (!SUPPORTED_INDICATORS[filter.indId]) {
+                    configWarnings.push(`${strategy.name} is disabled: ind_id ${JSON.stringify(filter.indId)} is not supported yet.`);
+                    strategy.disabled = true;
+                    return;
+                }
+                strategy.filters.push(filter);
+                if (!referencedIndIds.includes(filter.indId)) {
+                    referencedIndIds.push(filter.indId);
+                }
+            });
+        });
+
+        Object.keys(filtersByLabel).forEach(label => {
+            const used = strategies.some(s => s.indFilterLabels.includes(label));
+            if (!used) {
+                configWarnings.push(`ind_filter ${JSON.stringify(label)} is not referenced by any strategy.`);
+            }
+        });
+
+        const configErrorBanner = document.getElementById('config-error');
+        const configWarningBanner = document.getElementById('config-warning');
+        function renderConfigMessages() {
+            if (configErrors.length === 0) {
+                configErrorBanner.style.display = 'none';
+            } else {
+                configErrorBanner.innerHTML = 'Configuration problem in config.js'
+                    + '<ul>' + configErrors.map(msg => `<li>${msg}</li>`).join('') + '</ul>';
+                configErrorBanner.style.display = 'block';
+            }
+            if (configWarnings.length === 0) {
+                configWarningBanner.style.display = 'none';
+            } else {
+                configWarningBanner.innerHTML = 'Configuration warnings'
+                    + '<ul>' + configWarnings.map(msg => `<li>${msg}</li>`).join('') + '</ul>';
+                configWarningBanner.style.display = 'block';
+            }
         }
-        renderConfigErrors();
+        renderConfigMessages();
 
         // =================================================================
         // =================== 👨‍💻 CORE APPLICATION LOGIC 👨‍💻 ====================
         // =================================================================
 
         const strategiesContainer = document.getElementById('strategies-container');
+
+        /**
+         * One shared indicator input per unique ind_id referenced by an
+         * enabled strategy.  Each entry tracks its parsed value and the ET
+         * timestamp of the last accepted entry, which drives reset retention.
+         */
+        const indicatorInputs = {};
+        (function buildIndicatorInputs() {
+            const group = document.getElementById('indicator-input-group');
+            referencedIndIds.forEach(indId => {
+                const spec = SUPPORTED_INDICATORS[indId];
+                const wrapper = document.createElement('div');
+                const label = document.createElement('label');
+                const inputId = `indicator-${indId}`;
+                label.setAttribute('for', inputId);
+                label.textContent = spec.inputLabel;
+                // Text rather than number so invalid entries can be rejected
+                // with a visible warning instead of silently discarded.
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.inputMode = 'decimal';
+                input.id = inputId;
+                input.placeholder = spec.placeholder;
+                const warning = document.createElement('div');
+                warning.className = 'input-warning';
+                warning.style.display = 'none';
+                wrapper.appendChild(label);
+                wrapper.appendChild(input);
+                wrapper.appendChild(warning);
+                group.appendChild(wrapper);
+                indicatorInputs[indId] = {
+                    indId, spec, input, warning, value: null, updatedAt: null
+                };
+            });
+        })();
+
+        function validateIndicatorEntry(state) {
+            const raw = state.input.value.trim();
+            if (raw === '') {
+                state.value = null;
+                state.warning.style.display = 'none';
+                state.input.classList.remove('input-invalid');
+                return;
+            }
+            const parsed = Number(raw);
+            const valid = /^-?\d*\.?\d+$/.test(raw) && Number.isFinite(parsed)
+                && parsed >= state.spec.min && parsed <= state.spec.max;
+            if (!valid) {
+                state.value = null;
+                state.warning.textContent =
+                    `Enter a number between ${state.spec.min} and ${state.spec.max}.`;
+                state.warning.style.display = 'block';
+                state.input.classList.add('input-invalid');
+                return;
+            }
+            state.value = parsed;
+            state.updatedAt = getNowET();
+            state.warning.style.display = 'none';
+            state.input.classList.remove('input-invalid');
+        }
+
+        const indicatorBanner = document.getElementById('indicator-banner');
+        function renderIndicatorBanner() {
+            const missing = Object.values(indicatorInputs)
+                .filter(state => state.value === null)
+                .map(state => state.spec.inputLabel);
+            if (missing.length === 0) {
+                indicatorBanner.style.display = 'none';
+                return;
+            }
+            indicatorBanner.textContent = 'Trading signals are disabled until '
+                + missing.join(' and ') + ' ' + (missing.length > 1 ? 'are' : 'is')
+                + ' populated.';
+            indicatorBanner.style.display = 'block';
+        }
+        renderIndicatorBanner();
 
         // One shared EMA value input and one shared open price input per
         // unique ema_key across all strategies.
@@ -378,7 +601,7 @@
                     targetPrice = calculateTargetPrice(ema, strategy.offset, strategy.type);
 
                     // Only highlight if both price criteria is met and this hour is valid
-                    if (!isNaN(openPrice) && isCurrentHourValid) {
+                    if (!strategy.disabled && !isNaN(openPrice) && isCurrentHourValid) {
                         if (strategy.type === 'long' && openPrice > targetPrice) {
                             highlightClass = 'highlight-green';
                         } else if (strategy.type === 'short' && openPrice < targetPrice) {
@@ -389,7 +612,8 @@
                 }
 
                 const strategyDiv = document.createElement('div');
-                strategyDiv.className = 'strategy';
+                strategyDiv.className = 'strategy'
+                    + (strategy.disabled ? ' strategy--disabled' : '');
 
                 // Create Header
                 const header = document.createElement('div');
@@ -430,6 +654,12 @@
                 }
 
                 strategyDiv.appendChild(header);
+                if (strategy.disabled) {
+                    const note = document.createElement('div');
+                    note.className = 'strategy-disabled-note';
+                    note.textContent = 'Disabled by configuration \u2014 no trading signals.';
+                    strategyDiv.appendChild(note);
+                }
                 strategyDiv.appendChild(hoursContainer);
                 strategiesContainer.appendChild(strategyDiv);
             });
@@ -460,9 +690,30 @@
             if (now.getMinutes() === 0 && now.getSeconds() === 0) {
                 Object.values(emaInputs).forEach(input => { input.value = ''; });
                 Object.values(openPriceInputs).forEach(input => { input.value = ''; });
+                clearStaleIndicatorInputs(now);
+                renderIndicatorBanner();
                 renderStrategies();
             }
         };
+
+        /**
+         * Indicator values survive hourly resets through the trading day.
+         * Before 9am they are only cleared when they have not been updated
+         * since 1am today, which retires the previous day's value.
+         */
+        function clearStaleIndicatorInputs(now) {
+            if (now.getHours() >= 9) return;
+            const oneAmToday = new Date(now.getTime());
+            oneAmToday.setHours(1, 0, 0, 0);
+            Object.values(indicatorInputs).forEach(state => {
+                if (state.updatedAt && state.updatedAt >= oneAmToday) return;
+                state.input.value = '';
+                state.value = null;
+                state.updatedAt = null;
+                state.warning.style.display = 'none';
+                state.input.classList.remove('input-invalid');
+            });
+        }
 
         // ====== 🔊 BUZZER SOUND LOGIC =======
         const buzzer = document.getElementById('buzzer-audio');
@@ -502,6 +753,13 @@
         });
         Object.values(openPriceInputs).forEach(input => {
             input.addEventListener('input', renderStrategies);
+        });
+        Object.values(indicatorInputs).forEach(state => {
+            state.input.addEventListener('input', () => {
+                validateIndicatorEntry(state);
+                renderIndicatorBanner();
+                renderStrategies();
+            });
         });
         strategiesContainer.addEventListener('click', toggleHourValidity);
 
