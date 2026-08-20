@@ -89,9 +89,10 @@
         }
         .hours-container {
             display: flex;
-            gap: 8px;
+            gap: 10px;
             flex-wrap: wrap;
             margin-top: 10px;
+            padding: 4px 2px;
         }
         .hour-toggle {
             padding: 8px 12px;
@@ -101,6 +102,25 @@
             user-select: none;
             font-weight: bold;
             transition: all 0.2s ease-in-out;
+        }
+        /* Hours already elapsed today: still visible, clearly muted */
+        .hour-past {
+            opacity: 0.65;
+            filter: grayscale(25%);
+            font-weight: normal;
+            text-decoration: line-through;
+            transform: scale(0.92);
+        }
+        /* Past invalid hours read as an outline rather than a button */
+        .hour-past.hour-invalid {
+            background-color: transparent !important;
+            border-style: dashed !important;
+        }
+        /* The hour currently in progress: strongest emphasis */
+        .hour-current {
+            border: 2px solid #212529 !important;
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.35);
+            transform: scale(1.08);
         }
         /* Valid/Invalid Hour Highlighting */
         .hour-valid-long {
@@ -157,9 +177,9 @@
         </div>
 
         <div id="strategies-container"></div>
-        
+
         <div class="footer-link">
-             <a href="#" id="view-all-hours-link">View All Hour Validity</a>
+             <a href="#" id="view-all-hours-link">View All Days & Hours Validity</a>
         </div>
     </div>
 
@@ -213,9 +233,7 @@
          */
         const strategies = [
             { name: "IRA Bounce", type: "long", offset: 0, emaKey: "e1h9ema" },
-            { name: "IRA Reject", type: "short", offset: 40, emaKey: "e1h9ema" },
-            { name: "Apex Bounce", type: "long", offset: 40, emaKey: "e1h9ema" },
-            { name: "Apex Reject", type: "short", offset: 40, emaKey: "e1h9ema" }
+            { name: "IRA Reject", type: "short", offset: 40, emaKey: "e1h9ema" }
         ];
 
         /**
@@ -238,27 +256,13 @@
                 "Wednesday": [10, 14],
                 "Thursday": [9, 10, 12, 14],
                 "Friday": [9, 10]
-            },
-            "Apex Bounce": {
-                "Monday": [],
-                "Tuesday": [],
-                "Wednesday": [],
-                "Thursday": [],
-                "Friday": []
-            },
-            "Apex Reject": {
-                "Monday": [],
-                "Tuesday": [],
-                "Wednesday": [],
-                "Thursday": [],
-                "Friday": []
             }
         };
 
         // =================================================================
         // =================== 👨‍💻 CORE APPLICATION LOGIC 👨‍💻 ====================
         // =================================================================
-        
+
         const emaInputs = {
             "e1h9ema": document.getElementById('e1h9ema'),
             "e1h20ema": document.getElementById('e1h20ema')
@@ -275,7 +279,7 @@
                 return roundedDown + (offset / 4);
             }
         };
-        
+
         const renderStrategies = () => {
             strategiesContainer.innerHTML = '';
             const emaValues = {};
@@ -310,7 +314,7 @@
                     }
                     targetPrice = targetPrice.toFixed(2);
                 }
-                
+
                 const strategyDiv = document.createElement('div');
                 strategyDiv.className = 'strategy';
 
@@ -322,30 +326,36 @@
                                         <div class="strategy-name-right">${strategy.name} ${!isNaN(ema) ? ema.toFixed(2) + ' ' + strategy.emaKey : ''}</div>
                                         <span class="target-price ${highlightClass}">Target: ${targetPrice}</span>
                                     </div>`;
-                
+
                 // Create Hours Container
                 const hoursContainer = document.createElement('div');
                 hoursContainer.className = 'hours-container';
-                
+
+                // All hours stay visible; past hours are muted and the
+                // in-progress hour is emphasized.
                 for (let hour = 9; hour <= 15; hour++) {
-                    if (hour >= currentHour) { // Only show current and future hours
-                        const isValid = validHoursForDay.includes(hour);
-                        let hourClass = 'hour-toggle ';
-                        if (isValid) {
-                            hourClass += strategy.type === 'long' ? 'hour-valid-long' : 'hour-valid-short';
-                        } else {
-                            hourClass += 'hour-invalid';
-                        }
-                        const hourToggle = document.createElement('div');
-                        hourToggle.className = hourClass;
-                        hourToggle.textContent = `${hour}:00`;
-                        hourToggle.dataset.strategy = strategy.name;
-                        hourToggle.dataset.hour = hour;
-                        hourToggle.dataset.day = currentDay;
-                        hoursContainer.appendChild(hourToggle);
+                    const isValid = validHoursForDay.includes(hour);
+                    let hourClass = 'hour-toggle ';
+                    if (isValid) {
+                        hourClass += strategy.type === 'long' ? 'hour-valid-long' : 'hour-valid-short';
+                    } else {
+                        hourClass += 'hour-invalid';
                     }
+                    if (hour < currentHour) {
+                        hourClass += ' hour-past';
+                    } else if (hour === currentHour) {
+                        hourClass += ' hour-current';
+                    }
+                    const hourToggle = document.createElement('div');
+                    hourToggle.className = hourClass;
+                    hourToggle.textContent = `${hour}:00`;
+                    hourToggle.title = hour < currentHour ? 'Hour has passed' : (hour === currentHour ? 'Current hour' : 'Upcoming hour');
+                    hourToggle.dataset.strategy = strategy.name;
+                    hourToggle.dataset.hour = hour;
+                    hourToggle.dataset.day = currentDay;
+                    hoursContainer.appendChild(hourToggle);
                 }
-                
+
                 strategyDiv.appendChild(header);
                 strategyDiv.appendChild(hoursContainer);
                 strategiesContainer.appendChild(strategyDiv);
@@ -354,7 +364,7 @@
 
         const toggleHourValidity = (e) => {
             if (!e.target.classList.contains('hour-toggle')) return;
-            
+
             const { strategy, hour, day } = e.target.dataset;
             const hourNum = parseInt(hour, 10);
             const dayHours = strategyHours[strategy]?.[day];
@@ -368,7 +378,7 @@
                 dayHours.push(hourNum); // Add hour if it doesn't
                 dayHours.sort((a, b) => a - b); // Keep the array sorted
             }
-            
+
             renderStrategies(); // Re-render to show the change
         };
 
@@ -422,12 +432,12 @@
 
         // Initial render
         renderStrategies();
-        
+
         // Check to clear inputs every second
         setInterval(clearInputsAtTopOfTheHour, 1000);
-        
+
         // Refresh the entire view every minute to update the displayed hours
-        setInterval(renderStrategies, 60000); 
+        setInterval(renderStrategies, 60000);
 
         // Buzzer check every 250ms for precision
         setInterval(checkBuzzer, 250);
