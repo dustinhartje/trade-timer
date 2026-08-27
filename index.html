@@ -121,10 +121,38 @@
             gap: 20px;
             margin-bottom: 25px;
             justify-content: center;
+            flex-wrap: wrap;
         }
         .input-group div {
             display: flex;
             flex-direction: column;
+        }
+        .input-control-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .stale-warning-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: help;
+            color: #dc3545;
+            background-color: #fff5f5;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        .stale-warning-badge svg {
+            width: 13px;
+            height: 13px;
+            fill: #dc3545;
+            display: block;
         }
         .input-group label {
             margin-bottom: 5px;
@@ -137,6 +165,10 @@
             border-radius: 4px;
             font-size: 1rem;
             width: 150px;
+        }
+        .input-group input.input-stale {
+            border-color: #dc3545;
+            background-color: #fff8f8;
         }
         .strategy {
             border: 1px solid #ddd;
@@ -514,8 +546,41 @@
         const simulationAmPmToggle = document.getElementById('simulation-ampm-toggle');
         const simulationToggleLink = document.getElementById('simulation-toggle-link');
 
+        function resetAllInputs() {
+            if (typeof indicatorInputs !== 'undefined') {
+                Object.values(indicatorInputs).forEach(state => {
+                    state.input.value = '';
+                    state.value = null;
+                    state.updatedAt = null;
+                    state.warning.style.display = 'none';
+                    state.input.classList.remove('input-invalid');
+                    state.input.classList.remove('input-stale');
+                    if (state.staleIcon) state.staleIcon.style.display = 'none';
+                });
+            }
+            if (typeof emaInputStates !== 'undefined') {
+                Object.values(emaInputStates).forEach(state => {
+                    state.input.value = '';
+                    state.updatedAt = null;
+                    state.input.classList.remove('input-stale');
+                    if (state.staleIcon) state.staleIcon.style.display = 'none';
+                });
+            }
+            if (typeof openPriceInputStates !== 'undefined') {
+                Object.values(openPriceInputStates).forEach(state => {
+                    state.input.value = '';
+                    state.updatedAt = null;
+                    state.input.classList.remove('input-stale');
+                    if (state.staleIcon) state.staleIcon.style.display = 'none';
+                });
+            }
+            if (typeof updateStaleWarnings === 'function') updateStaleWarnings();
+            if (typeof renderIndicatorBanner === 'function') renderIndicatorBanner();
+        }
+
         function disableSimulationMode() {
             simulationState.enabled = false;
+            resetAllInputs();
             syncSimulationControls();
             renderStrategies();
             updateDateTime();
@@ -553,6 +618,7 @@
             simulationState.hour12 = 12;
             simulationState.minute = 0;
             simulationState.ampm = 'PM';
+            resetAllInputs();
             syncSimulationControls();
             renderStrategies();
             updateDateTime();
@@ -564,8 +630,12 @@
         });
 
         simulationDayInput.addEventListener('change', () => {
+            const wasEnabled = simulationState.enabled;
             simulationState.day = simulationDayInput.value;
             simulationState.enabled = true;
+            if (!wasEnabled) {
+                resetAllInputs();
+            }
             syncSimulationControls();
             renderStrategies();
             updateDateTime();
@@ -574,17 +644,25 @@
         simulationHourInput.addEventListener('change', () => {
             const parsed = parseHourMinuteSlot(simulationHourInput.value);
             if (!parsed) return;
+            const wasEnabled = simulationState.enabled;
             simulationState.hour12 = parsed.hour12;
             simulationState.minute = parsed.minute;
             simulationState.enabled = true;
+            if (!wasEnabled) {
+                resetAllInputs();
+            }
             syncSimulationControls();
             renderStrategies();
             updateDateTime();
         });
 
         simulationAmPmToggle.addEventListener('click', () => {
+            const wasEnabled = simulationState.enabled;
             simulationState.ampm = simulationState.ampm === 'AM' ? 'PM' : 'AM';
             simulationState.enabled = true;
+            if (!wasEnabled) {
+                resetAllInputs();
+            }
             syncSimulationControls();
             renderStrategies();
             updateDateTime();
@@ -849,26 +927,40 @@
             referencedIndIds.forEach(indId => {
                 const spec = SUPPORTED_INDICATORS[indId];
                 const wrapper = document.createElement('div');
+
                 const label = document.createElement('label');
                 const inputId = `indicator-${indId}`;
                 label.setAttribute('for', inputId);
                 label.textContent = spec.inputLabel;
-                // Text rather than number so invalid entries can be rejected
-                // with a visible warning instead of silently discarded.
+
+                const controlRow = document.createElement('div');
+                controlRow.className = 'input-control-row';
+
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.inputMode = 'decimal';
                 input.id = inputId;
                 input.placeholder = spec.placeholder;
+
+                const staleIcon = document.createElement('span');
+                staleIcon.className = 'stale-warning-badge';
+                staleIcon.style.display = 'none';
+                staleIcon.innerHTML = `<svg viewBox="0 0 16 16" width="13" height="13" fill="#dc3545"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg><span>STALE</span>`;
+
+                controlRow.appendChild(input);
+                controlRow.appendChild(staleIcon);
+
                 const warning = document.createElement('div');
                 warning.className = 'input-warning';
                 warning.style.display = 'none';
+
                 wrapper.appendChild(label);
-                wrapper.appendChild(input);
+                wrapper.appendChild(controlRow);
                 wrapper.appendChild(warning);
                 group.appendChild(wrapper);
+
                 indicatorInputs[indId] = {
-                    indId, spec, input, warning, value: null, updatedAt: null
+                    indId, spec, input, warning, staleIcon, value: null, updatedAt: null
                 };
             });
         })();
@@ -877,8 +969,10 @@
             const raw = state.input.value.trim();
             if (raw === '') {
                 state.value = null;
+                state.updatedAt = null;
                 state.warning.style.display = 'none';
                 state.input.classList.remove('input-invalid');
+                updateStaleWarnings();
                 return;
             }
             const parsed = Number(raw);
@@ -886,16 +980,19 @@
                 && parsed >= state.spec.min && parsed <= state.spec.max;
             if (!valid) {
                 state.value = null;
+                state.updatedAt = null;
                 state.warning.textContent =
                     `Enter a number between ${state.spec.min} and ${state.spec.max}.`;
                 state.warning.style.display = 'block';
                 state.input.classList.add('input-invalid');
+                updateStaleWarnings();
                 return;
             }
             state.value = parsed;
             state.updatedAt = getNowET();
             state.warning.style.display = 'none';
             state.input.classList.remove('input-invalid');
+            updateStaleWarnings();
         }
 
         const indicatorBanner = document.getElementById('indicator-banner');
@@ -916,34 +1013,185 @@
 
         // One shared EMA value input and one shared open price input per
         // unique ema_key across all strategies.
+        const emaInputStates = {};
+        const openPriceInputStates = {};
         const emaInputs = {};
         const openPriceInputs = {};
         (function buildEmaInputs() {
             const inputGroup = document.getElementById('input-group');
-            const addInput = function(id, labelText, placeholder) {
+            const addInput = function(id, labelText, placeholder, key) {
                 const wrapper = document.createElement('div');
+
                 const label = document.createElement('label');
                 label.setAttribute('for', id);
                 label.textContent = labelText;
+
+                const controlRow = document.createElement('div');
+                controlRow.className = 'input-control-row';
+
                 const input = document.createElement('input');
                 input.type = 'number';
                 input.id = id;
                 input.step = '0.01';
                 input.placeholder = placeholder;
+
+                const staleIcon = document.createElement('span');
+                staleIcon.className = 'stale-warning-badge';
+                staleIcon.style.display = 'none';
+                staleIcon.innerHTML = `<svg viewBox="0 0 16 16" width="13" height="13" fill="#dc3545"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg><span>STALE</span>`;
+
+                controlRow.appendChild(input);
+                controlRow.appendChild(staleIcon);
+
                 wrapper.appendChild(label);
-                wrapper.appendChild(input);
+                wrapper.appendChild(controlRow);
                 inputGroup.appendChild(wrapper);
-                return input;
+
+                const state = { id, labelText, input, staleIcon, updatedAt: null, key };
+                return state;
             };
             strategies.forEach(strategy => {
-                if (emaInputs[strategy.emaKey]) return;
-                emaInputs[strategy.emaKey] = addInput(
-                    strategy.emaKey, strategy.emaKey, 'e.g., 4550.75');
-                openPriceInputs[strategy.emaKey] = addInput(
+                if (emaInputStates[strategy.emaKey]) return;
+                const emaState = addInput(
+                    strategy.emaKey, strategy.emaKey, 'e.g., 4550.75', strategy.emaKey);
+                emaInputStates[strategy.emaKey] = emaState;
+                emaInputs[strategy.emaKey] = emaState.input;
+
+                const openState = addInput(
                     `${strategy.emaKey}-open-price`,
-                    `${strategy.emaKey} Open Price`, 'e.g., 4552.50');
+                    `${strategy.emaKey} Open Price`, 'e.g., 4552.50', strategy.emaKey);
+                openPriceInputStates[strategy.emaKey] = openState;
+                openPriceInputs[strategy.emaKey] = openState.input;
             });
         })();
+
+        function getETDateString(d) {
+            if (!d) return '';
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function getCurrentHourStartET(now) {
+            const start = new Date(now.getTime());
+            start.setMinutes(0, 0, 0);
+            return start;
+        }
+
+        function updateStaleWarnings() {
+            const now = getNowET();
+            const currentDateStr = getETDateString(now);
+            const currentHourStart = getCurrentHourStartET(now);
+
+            // Daily indicator inputs (RSI)
+            Object.values(indicatorInputs).forEach(state => {
+                const hasValue = state.input.value.trim() !== '';
+                let isStale = false;
+                let tooltipMsg = '';
+
+                if (hasValue) {
+                    if (!state.updatedAt) {
+                        isStale = true;
+                        tooltipMsg = `Stale value: This ${state.spec.inputLabel} has not been updated today.`;
+                    } else {
+                        const updatedDateStr = getETDateString(state.updatedAt);
+                        if (updatedDateStr !== currentDateStr) {
+                            isStale = true;
+                            tooltipMsg = `Stale value: This ${state.spec.inputLabel} was updated on a previous day (${updatedDateStr}) and is not from today.`;
+                        }
+                    }
+                }
+
+                if (isStale) {
+                    state.staleIcon.style.display = 'inline-flex';
+                    state.staleIcon.setAttribute('title', tooltipMsg);
+                    state.input.classList.add('input-stale');
+                } else {
+                    state.staleIcon.style.display = 'none';
+                    state.input.classList.remove('input-stale');
+                }
+            });
+
+            // Hourly inputs (EMA & Open Price)
+            const checkHourly = (state) => {
+                const hasValue = state.input.value.trim() !== '';
+                let isStale = false;
+                let tooltipMsg = '';
+
+                if (hasValue) {
+                    if (!state.updatedAt) {
+                        isStale = true;
+                        tooltipMsg = `Stale value: This ${state.labelText} value has not been updated for the current hour.`;
+                    } else if (state.updatedAt < currentHourStart) {
+                        isStale = true;
+                        const timeStr = state.updatedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        tooltipMsg = `Stale value: This ${state.labelText} value was updated prior to the current hour (at ${timeStr}) and is no longer current.`;
+                    }
+                }
+
+                if (isStale) {
+                    state.staleIcon.style.display = 'inline-flex';
+                    state.staleIcon.setAttribute('title', tooltipMsg);
+                    state.input.classList.add('input-stale');
+                } else {
+                    state.staleIcon.style.display = 'none';
+                    state.input.classList.remove('input-stale');
+                }
+            };
+
+            Object.values(emaInputStates).forEach(checkHourly);
+            Object.values(openPriceInputStates).forEach(checkHourly);
+        }
+
+        let lastInputResetStamp = null;
+        function autoClearInputs() {
+            if (simulationState.enabled) return;
+            const now = getNowET();
+            const currentDateStr = getETDateString(now);
+            const currentHourStamp = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}`;
+
+            let stateChanged = false;
+
+            // 1. Daily inputs (RSI): Clear if value is present and updatedAt date is not today in ET
+            Object.values(indicatorInputs).forEach(state => {
+                if (state.input.value.trim() !== '' || state.value !== null) {
+                    if (state.updatedAt && getETDateString(state.updatedAt) !== currentDateStr) {
+                        state.input.value = '';
+                        state.value = null;
+                        state.updatedAt = null;
+                        state.warning.style.display = 'none';
+                        state.input.classList.remove('input-invalid');
+                        state.input.classList.remove('input-stale');
+                        if (state.staleIcon) state.staleIcon.style.display = 'none';
+                        stateChanged = true;
+                    }
+                }
+            });
+
+            // 2. Hourly inputs (EMA and Open Price): Clear whenever a new hour in ET begins
+            if (lastInputResetStamp !== null && lastInputResetStamp !== currentHourStamp) {
+                Object.values(emaInputStates).forEach(state => {
+                    state.input.value = '';
+                    state.updatedAt = null;
+                    state.input.classList.remove('input-stale');
+                    if (state.staleIcon) state.staleIcon.style.display = 'none';
+                });
+                Object.values(openPriceInputStates).forEach(state => {
+                    state.input.value = '';
+                    state.updatedAt = null;
+                    state.input.classList.remove('input-stale');
+                    if (state.staleIcon) state.staleIcon.style.display = 'none';
+                });
+                stateChanged = true;
+            }
+            lastInputResetStamp = currentHourStamp;
+
+            if (stateChanged) {
+                renderIndicatorBanner();
+                renderStrategies();
+            }
+        }
 
         const calculateTargetPrice = (ema, offset, type) => {
             if (type === 'long') {
@@ -1097,41 +1345,6 @@
             renderStrategies(); // Re-render to show the change
         };
 
-        let lastInputResetStamp = null;
-        const clearInputsAtTopOfTheHour = () => {
-            if (simulationState.enabled) return;
-            const now = getNowET();
-            if (now.getMinutes() === 0 && now.getSeconds() === 0) {
-                const hourStamp = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}`;
-                if (hourStamp === lastInputResetStamp) return;
-                lastInputResetStamp = hourStamp;
-                Object.values(emaInputs).forEach(input => { input.value = ''; });
-                Object.values(openPriceInputs).forEach(input => { input.value = ''; });
-                clearStaleIndicatorInputs(now);
-                renderIndicatorBanner();
-                renderStrategies();
-            }
-        };
-
-        /**
-         * Indicator values survive hourly resets through the trading day.
-         * Before 9am they are only cleared when they have not been updated
-         * since 1am today, which retires the previous day's value.
-         */
-        function clearStaleIndicatorInputs(now) {
-            if (now.getHours() >= 9) return;
-            const oneAmToday = new Date(now.getTime());
-            oneAmToday.setHours(1, 0, 0, 0);
-            Object.values(indicatorInputs).forEach(state => {
-                if (state.updatedAt && state.updatedAt >= oneAmToday) return;
-                state.input.value = '';
-                state.value = null;
-                state.updatedAt = null;
-                state.warning.style.display = 'none';
-                state.input.classList.remove('input-invalid');
-            });
-        }
-
         // ====== 🔊 BUZZER SOUND LOGIC =======
         const buzzer = document.getElementById('buzzer-audio');
         let hasBuzzedThisHour = false;
@@ -1165,11 +1378,27 @@
         }
 
         // Event Listeners
-        Object.values(emaInputs).forEach(input => {
-            input.addEventListener('input', renderStrategies);
+        Object.values(emaInputStates).forEach(state => {
+            state.input.addEventListener('input', () => {
+                if (state.input.value.trim() !== '') {
+                    state.updatedAt = getNowET();
+                } else {
+                    state.updatedAt = null;
+                }
+                updateStaleWarnings();
+                renderStrategies();
+            });
         });
-        Object.values(openPriceInputs).forEach(input => {
-            input.addEventListener('input', renderStrategies);
+        Object.values(openPriceInputStates).forEach(state => {
+            state.input.addEventListener('input', () => {
+                if (state.input.value.trim() !== '') {
+                    state.updatedAt = getNowET();
+                } else {
+                    state.updatedAt = null;
+                }
+                updateStaleWarnings();
+                renderStrategies();
+            });
         });
         Object.values(indicatorInputs).forEach(state => {
             state.input.addEventListener('input', () => {
@@ -1182,9 +1411,14 @@
 
         // Initial render
         renderStrategies();
+        updateStaleWarnings();
 
-        // Check to clear inputs every second
-        setInterval(clearInputsAtTopOfTheHour, 1000);
+        // Check to clear inputs and update stale warnings every second
+        function tick() {
+            autoClearInputs();
+            updateStaleWarnings();
+        }
+        setInterval(tick, 1000);
 
         // Refresh the entire view every minute to update the displayed hours
         setInterval(renderStrategies, 60000);
