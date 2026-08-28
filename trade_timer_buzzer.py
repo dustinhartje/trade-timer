@@ -89,7 +89,7 @@ def log_next_playback(strategies):
 
 def play_buzzer():
     subprocess.Popen(
-        ['paplay', str(BUZZER_PATH)],
+        ['ffplay', '-nodisp', '-autoexit', '-loglevel', 'error', str(BUZZER_PATH)],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
@@ -100,8 +100,8 @@ def main():
     if not BUZZER_PATH.is_file():
         log(f'Buzzer file not found: {BUZZER_PATH}', sys.stderr)
         return 1
-    if not shutil.which('paplay'):
-        log('paplay is required. Install it with: sudo apt install pulseaudio-utils', sys.stderr)
+    if not shutil.which('ffplay'):
+        log('ffplay is required. Install it with: sudo apt install ffmpeg', sys.stderr)
         return 1
 
     hours_by_strategy = []
