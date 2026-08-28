@@ -321,6 +321,19 @@
             text-align: center;
             margin-top: 20px;
         }
+        .mute-button {
+            background: #6c757d;
+            border: 1px solid #5a6268;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 7px 12px;
+        }
+        .mute-button[aria-pressed="true"] {
+            background: #dc3545;
+            border-color: #bd2130;
+        }
         .config-banner {
             background-color: #f8d7da;
             border: 1px solid #f5c6cb;
@@ -452,6 +465,7 @@
         <div id="strategies-container"></div>
 
         <div class="footer-link">
+              <button id="mute-button" class="mute-button" type="button" aria-pressed="false">Mute sound</button>
              <a href="#" id="view-all-hours-link">View All Days & Hours Validity</a>
         </div>
     </div>
@@ -1347,8 +1361,19 @@
 
         // ====== 🔊 BUZZER SOUND LOGIC =======
         const buzzer = document.getElementById('buzzer-audio');
+        const muteButton = document.getElementById('mute-button');
+        let isMuted = false;
         let hasBuzzedThisHour = false;
+        let buzzerPlaybackPending = false;
+        muteButton.addEventListener('click', () => {
+            isMuted = !isMuted;
+            muteButton.setAttribute('aria-pressed', String(isMuted));
+            muteButton.textContent = isMuted ? 'Unmute sound' : 'Mute sound';
+            if (isMuted) buzzer.pause();
+        });
         function checkBuzzer() {
+            if (simulationState.enabled || isMuted) return;
+
             const now = getNowET();
             const currentDay = now.toLocaleString('en-US', { weekday: 'long' });
             const currentHour = now.getHours();
@@ -1363,14 +1388,16 @@
             }
             // Play at xx:59:30-xx:59:34 (for a 28s ticking buzzer) only if valid
             if (hourIsValid && now.getMinutes() === 59 && now.getSeconds() >= 30 && now.getSeconds() < 34) {
-                if (!hasBuzzedThisHour) {
-                    try {
-                        buzzer.currentTime = 0;
-                        buzzer.play();
-                    } catch (e) {
-                        // Ignore play errors (browser may block until user interacts)
-                    }
-                    hasBuzzedThisHour = true;
+                if (!hasBuzzedThisHour && !buzzerPlaybackPending) {
+                    buzzerPlaybackPending = true;
+                    buzzer.currentTime = 0;
+                    buzzer.play().then(() => {
+                        hasBuzzedThisHour = true;
+                    }).catch(() => {
+                        // A blocked playback attempt should be retried during this window.
+                    }).finally(() => {
+                        buzzerPlaybackPending = false;
+                    });
                 }
             } else if (now.getMinutes() !== 59) {
                 hasBuzzedThisHour = false; // Reset for next hour
