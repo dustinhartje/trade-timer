@@ -16,6 +16,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / 'config.js'
 BUZZER_PATH = ROOT / 'tickingbuzzer_28sec.mp3'
+END_OF_DAY_PATH = ROOT / 'end_of_day_closing_28sec.mp3'
+TRADE_SUBMIT_PATH = ROOT / 'trade_submit_bippity_bleep.wav'
 POLL_SECONDS = 0.25
 CONFIG_CHECK_SECONDS = 1
 
@@ -59,28 +61,58 @@ def playback_reasons(strategies, now):
     reasons = []
     for strategy in strategies:
         valid_hours = strategy['hours'].get(weekday, [])
-        if current_hour == 9 and now.minute == 29 and current_hour in valid_hours:
+        if current_hour == 9 and now.minute == 24 and current_hour in valid_hours:
             reasons.append(f"before {strategy['name']} 9:30 AM market open")
         elif current_hour in valid_hours:
             reasons.append(f"end of {strategy['name']} {current_hour % 12 or 12}:00 {'AM' if current_hour < 12 else 'PM'} tradeable hour")
-        if now.minute != 29 and next_hour != 9 and next_hour in valid_hours:
+        if now.minute != 24 and next_hour != 9 and next_hour in valid_hours:
             reasons.append(f"before {strategy['name']} {next_hour % 12 or 12}:00 {'AM' if next_hour < 12 else 'PM'} tradeable hour")
     return reasons
+
+
+def has_valid_trade_hour(strategies, now):
+    weekday = now.strftime('%A')
+    return any(now.hour in strategy['hours'].get(weekday, []) for strategy in strategies)
+
+
+def playback_event(strategies, now):
+    weekday = now.strftime('%A')
+    if (weekday not in ('Saturday', 'Sunday') and now.hour == 15 and now.minute == 54
+        and 30 <= now.second < 34):
+        return 'end-of-day', ['end of day: close all trades']
+    if (((now.hour == 9 and now.minute == 29)
+        or (now.hour != 9 and now.minute == 0)) and 55 <= now.second < 59):
+        if has_valid_trade_hour(strategies, now):
+            return 'trade-submit', ['valid trade hour: submit the trade if it has not been invalidated']
+    if (((now.hour == 9 and now.minute == 24) or now.minute == 59)
+        and 30 <= now.second < 34):
+        reasons = playback_reasons(strategies, now)
+        if reasons:
+            return 'boundary', reasons
+    return None, []
 
 
 def next_playback(strategies, now):
     hour_start = now.replace(minute=0, second=0, microsecond=0)
     for offset in range(8 * 24 + 1):
         candidate_hour = hour_start + timedelta(hours=offset)
-        candidates = [candidate_hour.replace(minute=59, second=30)]
+        candidates = [
+            candidate_hour.replace(minute=0, second=55),
+            candidate_hour.replace(minute=59, second=30),
+        ]
         if candidate_hour.hour == 9:
-            candidates.insert(0, candidate_hour.replace(minute=29, second=30))
+            candidates.extend([
+                candidate_hour.replace(minute=24, second=30),
+                candidate_hour.replace(minute=29, second=55),
+            ])
+        if candidate_hour.hour == 15:
+            candidates.append(candidate_hour.replace(minute=54, second=30))
 
-        for candidate in candidates:
+        for candidate in sorted(candidates):
             if candidate <= now:
                 continue
-            reasons = playback_reasons(strategies, candidate)
-            if reasons:
+            event_kind, reasons = playback_event(strategies, candidate)
+            if event_kind:
                 return candidate, reasons
     return None, []
 
@@ -93,9 +125,9 @@ def log_next_playback(strategies):
         log('No playback is scheduled in the next eight days.')
 
 
-def play_buzzer():
+def play_sound(sound_path):
     subprocess.Popen(
-        ['ffplay', '-nodisp', '-autoexit', '-loglevel', 'error', str(BUZZER_PATH)],
+        ['ffplay', '-nodisp', '-autoexit', '-loglevel', 'error', str(sound_path)],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
@@ -103,9 +135,10 @@ def play_buzzer():
 
 
 def main():
-    if not BUZZER_PATH.is_file():
-        log(f'Buzzer file not found: {BUZZER_PATH}', sys.stderr)
-        return 1
+    for sound_path in (BUZZER_PATH, END_OF_DAY_PATH, TRADE_SUBMIT_PATH):
+        if not sound_path.is_file():
+            log(f'Sound file not found: {sound_path}', sys.stderr)
+            return 1
     if not shutil.which('ffplay'):
         log('ffplay is required. Install it with: sudo apt install ffmpeg', sys.stderr)
         return 1
@@ -113,7 +146,7 @@ def main():
     hours_by_strategy = []
     config_mtime = None
     last_config_check = 0.0
-    buzzed_hour = None
+    played_event_id = None
 
     log(f'Trade Timer buzzer watching {CONFIG_PATH}')
     while running:
@@ -131,19 +164,20 @@ def main():
                 log(f'Cannot load config: {error}', sys.stderr)
 
         now = datetime.now()
-        trigger_hour = now.strftime('%Y-%m-%d %H')
-        in_buzzer_window = (
-            (now.minute == 59 or (now.hour == 9 and now.minute == 29))
-            and 30 <= now.second < 34
-        )
-        reasons = playback_reasons(hours_by_strategy, now)
-        if in_buzzer_window and buzzed_hour != trigger_hour and reasons:
-            play_buzzer()
-            buzzed_hour = trigger_hour
-            log('Played buzzer; ' + '; '.join(reasons))
+        event_kind, reasons = playback_event(hours_by_strategy, now.replace(microsecond=0))
+        event_id = f'{now:%Y-%m-%d %H:%M}-{event_kind}' if event_kind else None
+        if event_kind and played_event_id != event_id:
+            sound_path = {
+                'boundary': BUZZER_PATH,
+                'end-of-day': END_OF_DAY_PATH,
+                'trade-submit': TRADE_SUBMIT_PATH,
+            }[event_kind]
+            play_sound(sound_path)
+            played_event_id = event_id
+            log('Played ' + event_kind + '; ' + '; '.join(reasons))
             log_next_playback(hours_by_strategy)
-        elif not in_buzzer_window:
-            buzzed_hour = None
+        elif not event_kind:
+            played_event_id = None
 
         time.sleep(POLL_SECONDS)
 

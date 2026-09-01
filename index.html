@@ -364,6 +364,17 @@
             font-weight: 700;
             text-align: center;
         }
+        .playback-banner {
+            background-color: #fff3cd;
+            border: 2px solid #ffda6a;
+            color: #7a4a00;
+            border-radius: 6px;
+            padding: 12px 15px;
+            margin-bottom: 18px;
+            font-size: 1rem;
+            font-weight: 700;
+            text-align: center;
+        }
         .input-warning {
             color: #dc3545;
             font-size: 0.8rem;
@@ -458,6 +469,7 @@
         <div class="config-banner" id="config-error" style="display:none"></div>
         <div class="config-banner config-banner--warning" id="config-warning" style="display:none"></div>
         <div class="indicator-banner" id="indicator-banner" style="display:none"></div>
+        <div class="playback-banner" id="playback-banner" role="status" aria-live="polite" style="display:none"></div>
 
         <div class="input-group" id="indicator-input-group"></div>
         <div class="input-group" id="input-group"></div>
@@ -474,6 +486,12 @@
     <audio id="buzzer-audio" preload="auto">
         <source src="tickingbuzzer_28sec.mp3" type="audio/mpeg">
         Your browser does not support the audio element.
+    </audio>
+    <audio id="end-of-day-audio" preload="auto">
+        <source src="end_of_day_closing_28sec.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="trade-submit-audio" preload="auto">
+        <source src="trade_submit_bippity_bleep.wav" type="audio/wav">
     </audio>
 
     <!-- Strategy/filter configuration, paste-replaceable from the ABR page -->
@@ -1361,16 +1379,51 @@
 
         // ====== 🔊 BUZZER SOUND LOGIC =======
         const buzzer = document.getElementById('buzzer-audio');
+        const endOfDayAudio = document.getElementById('end-of-day-audio');
+        const tradeSubmitAudio = document.getElementById('trade-submit-audio');
         const muteButton = document.getElementById('mute-button');
+        const playbackBanner = document.getElementById('playback-banner');
         let isMuted = false;
-        let hasBuzzedThisHour = false;
-        let buzzerPlaybackPending = false;
+        let playbackBannerTimeout = null;
+        let activePlaybackId = null;
+        let playbackPending = false;
         muteButton.addEventListener('click', () => {
             isMuted = !isMuted;
             muteButton.setAttribute('aria-pressed', String(isMuted));
             muteButton.textContent = isMuted ? 'Unmute sound' : 'Mute sound';
-            if (isMuted) buzzer.pause();
+            if (isMuted) {
+                [buzzer, endOfDayAudio, tradeSubmitAudio].forEach(audio => audio.pause());
+            }
         });
+
+        function currentHourHasValidTrade(currentDay, currentHour) {
+            return strategies.some(strategy =>
+                (strategyHours[strategy.name]?.[currentDay] || []).includes(currentHour));
+        }
+
+        function showPlaybackNotice(message) {
+            playbackBanner.textContent = message;
+            playbackBanner.style.display = 'block';
+            clearTimeout(playbackBannerTimeout);
+            playbackBannerTimeout = setTimeout(() => {
+                playbackBanner.style.display = 'none';
+            }, 30000);
+        }
+
+        function playSound(audio, eventId, message) {
+            if (activePlaybackId === eventId || playbackPending) return;
+            playbackPending = true;
+            audio.currentTime = 0;
+            audio.play().then(() => {
+                activePlaybackId = eventId;
+                showPlaybackNotice(message);
+            }).catch(() => {
+                // A blocked playback attempt should be retried during this window.
+            }).finally(() => {
+                playbackPending = false;
+            });
+        }
+
         function checkBuzzer() {
             if (simulationState.enabled || isMuted) return;
 
@@ -1378,11 +1431,17 @@
             const currentDay = now.toLocaleString('en-US', { weekday: 'long' });
             const currentHour = now.getHours();
             const nextHour = currentHour + 1;
-            const isMarketOpenWindow = currentHour === 9 && now.getMinutes() === 29
+            const secondsInPlaybackWindow = now.getSeconds() >= 30 && now.getSeconds() < 34;
+            const isMarketOpenWindow = currentHour === 9 && now.getMinutes() === 24
+                && secondsInPlaybackWindow;
+            const isTradeSubmitWindow = ((currentHour === 9 && now.getMinutes() === 29)
+                || (currentHour !== 9 && now.getMinutes() === 0))
+                && now.getSeconds() >= 55 && now.getSeconds() < 59;
+            const isEndOfDayWindow = currentDay !== 'Saturday' && currentDay !== 'Sunday'
+                && currentHour === 15 && now.getMinutes() === 54
                 && now.getSeconds() >= 30 && now.getSeconds() < 34;
             const isHourBoundaryWindow = now.getMinutes() === 59
-                && now.getSeconds() >= 30 && now.getSeconds() < 34;
-            const isBuzzerWindow = isMarketOpenWindow || isHourBoundaryWindow;
+                && secondsInPlaybackWindow;
             let hourIsValid = false;
             for (const strategy of strategies) {
                 const validHours = strategyHours[strategy.name]?.[currentDay] || [];
@@ -1393,21 +1452,19 @@
                     break;
                 }
             }
-            // Play 28 seconds before a valid boundary, except use 9:29:30 for the market open.
-            if (hourIsValid && isBuzzerWindow) {
-                if (!hasBuzzedThisHour && !buzzerPlaybackPending) {
-                    buzzerPlaybackPending = true;
-                    buzzer.currentTime = 0;
-                    buzzer.play().then(() => {
-                        hasBuzzedThisHour = true;
-                    }).catch(() => {
-                        // A blocked playback attempt should be retried during this window.
-                    }).finally(() => {
-                        buzzerPlaybackPending = false;
-                    });
-                }
-            } else if (!isBuzzerWindow) {
-                hasBuzzedThisHour = false; // Reset for next hour
+            const timestamp = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${currentHour}`;
+
+            if (isEndOfDayWindow) {
+                playSound(endOfDayAudio, `${timestamp}-end-of-day`, 'End of day: close all trades.');
+            } else if (isTradeSubmitWindow && currentHourHasValidTrade(currentDay, currentHour)) {
+                playSound(tradeSubmitAudio, `${timestamp}-submit`, 'Valid trade hour: submit the trade if it has not been invalidated.');
+            } else if (hourIsValid && (isMarketOpenWindow || isHourBoundaryWindow)) {
+                const message = isMarketOpenWindow
+                    ? 'Valid 9:00 AM trade hour: market open is in five minutes.'
+                    : 'A valid trade-hour boundary is approaching.';
+                playSound(buzzer, `${timestamp}-boundary`, message);
+            } else if (!isEndOfDayWindow && !isTradeSubmitWindow && !isMarketOpenWindow && !isHourBoundaryWindow) {
+                activePlaybackId = null;
             }
         }
 
