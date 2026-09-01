@@ -1378,16 +1378,23 @@
             const currentDay = now.toLocaleString('en-US', { weekday: 'long' });
             const currentHour = now.getHours();
             const nextHour = currentHour + 1;
+            const isMarketOpenWindow = currentHour === 9 && now.getMinutes() === 29
+                && now.getSeconds() >= 30 && now.getSeconds() < 34;
+            const isHourBoundaryWindow = now.getMinutes() === 59
+                && now.getSeconds() >= 30 && now.getSeconds() < 34;
+            const isBuzzerWindow = isMarketOpenWindow || isHourBoundaryWindow;
             let hourIsValid = false;
             for (const strategy of strategies) {
                 const validHours = strategyHours[strategy.name]?.[currentDay] || [];
-                if (validHours.includes(currentHour) || validHours.includes(nextHour)) {
+                const isCurrentHourValid = validHours.includes(currentHour);
+                const isNextHourValid = nextHour !== 9 && validHours.includes(nextHour);
+                if (isCurrentHourValid || (!isMarketOpenWindow && isNextHourValid)) {
                     hourIsValid = true;
                     break;
                 }
             }
-            // Play at xx:59:30-xx:59:34 (for a 28s ticking buzzer) only if valid
-            if (hourIsValid && now.getMinutes() === 59 && now.getSeconds() >= 30 && now.getSeconds() < 34) {
+            // Play 28 seconds before a valid boundary, except use 9:29:30 for the market open.
+            if (hourIsValid && isBuzzerWindow) {
                 if (!hasBuzzedThisHour && !buzzerPlaybackPending) {
                     buzzerPlaybackPending = true;
                     buzzer.currentTime = 0;
@@ -1399,7 +1406,7 @@
                         buzzerPlaybackPending = false;
                     });
                 }
-            } else if (now.getMinutes() !== 59) {
+            } else if (!isBuzzerWindow) {
                 hasBuzzedThisHour = false; // Reset for next hour
             }
         }

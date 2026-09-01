@@ -59,23 +59,29 @@ def playback_reasons(strategies, now):
     reasons = []
     for strategy in strategies:
         valid_hours = strategy['hours'].get(weekday, [])
-        if current_hour in valid_hours:
+        if current_hour == 9 and now.minute == 29 and current_hour in valid_hours:
+            reasons.append(f"before {strategy['name']} 9:30 AM market open")
+        elif current_hour in valid_hours:
             reasons.append(f"end of {strategy['name']} {current_hour % 12 or 12}:00 {'AM' if current_hour < 12 else 'PM'} tradeable hour")
-        if next_hour in valid_hours:
+        if now.minute != 29 and next_hour != 9 and next_hour in valid_hours:
             reasons.append(f"before {strategy['name']} {next_hour % 12 or 12}:00 {'AM' if next_hour < 12 else 'PM'} tradeable hour")
     return reasons
 
 
 def next_playback(strategies, now):
-    candidate = now.replace(minute=59, second=30, microsecond=0)
-    if candidate <= now:
-        candidate += timedelta(hours=1)
+    hour_start = now.replace(minute=0, second=0, microsecond=0)
+    for offset in range(8 * 24 + 1):
+        candidate_hour = hour_start + timedelta(hours=offset)
+        candidates = [candidate_hour.replace(minute=59, second=30)]
+        if candidate_hour.hour == 9:
+            candidates.insert(0, candidate_hour.replace(minute=29, second=30))
 
-    for _ in range(8 * 24):
-        reasons = playback_reasons(strategies, candidate)
-        if reasons:
-            return candidate, reasons
-        candidate += timedelta(hours=1)
+        for candidate in candidates:
+            if candidate <= now:
+                continue
+            reasons = playback_reasons(strategies, candidate)
+            if reasons:
+                return candidate, reasons
     return None, []
 
 
@@ -126,14 +132,17 @@ def main():
 
         now = datetime.now()
         trigger_hour = now.strftime('%Y-%m-%d %H')
-        in_buzzer_window = now.minute == 59 and 30 <= now.second < 34
+        in_buzzer_window = (
+            (now.minute == 59 or (now.hour == 9 and now.minute == 29))
+            and 30 <= now.second < 34
+        )
         reasons = playback_reasons(hours_by_strategy, now)
         if in_buzzer_window and buzzed_hour != trigger_hour and reasons:
             play_buzzer()
             buzzed_hour = trigger_hour
             log('Played buzzer; ' + '; '.join(reasons))
             log_next_playback(hours_by_strategy)
-        elif now.minute != 59:
+        elif not in_buzzer_window:
             buzzed_hour = None
 
         time.sleep(POLL_SECONDS)
