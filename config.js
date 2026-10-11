@@ -1,3 +1,4 @@
+// ind_filters ranges are half-open: [low, high) — low is included, high is not.
 window.TIMER_CONFIG =
 {
   "strategies": [
@@ -12,30 +13,26 @@ window.TIMER_CONFIG =
       "valid_hours": {
         "Sunday": [],
         "Monday": [
-          9,
-          13,
-          15
+          10,
+          13
         ],
         "Tuesday": [
           10,
-          11,
-          12,
           14
         ],
         "Wednesday": [
           9,
-          10,
-          12,
-          14,
-          15
+          10
         ],
         "Thursday": [
+          9,
           10,
           11,
-          12
+          14
         ],
         "Friday": [
-          11
+          10,
+          15
         ],
         "Saturday": []
       }
@@ -43,7 +40,7 @@ window.TIMER_CONFIG =
     {
       "name": "IRA Reject",
       "type": "short",
-      "offset": -20,
+      "offset": 40,
       "ema_key": "e1h9ema",
       "ind_filter_labels": [
         "default: rcr_refresh_cycle_20260808-1786224944-84102b9e_short"
@@ -51,33 +48,30 @@ window.TIMER_CONFIG =
       "valid_hours": {
         "Sunday": [],
         "Monday": [
-          9,
-          12,
-          13,
-          14,
-          15
+          11,
+          12
         ],
         "Tuesday": [
           9,
-          11,
           14,
           15
         ],
         "Wednesday": [
-          9,
-          10,
-          12
+          11,
+          14,
+          15
         ],
         "Thursday": [
           9,
           10,
           11,
-          12,
-          13,
           14
         ],
         "Friday": [
-          14
+          9,
+          11,
+          13,
+          15
         ],
         "Saturday": []
       }
@@ -92,19 +86,19 @@ window.TIMER_CONFIG =
       "ranges": [
         [
           25,
-          39.99
+          40
         ],
         [
           45,
-          49.99
+          50
         ],
         [
           65,
-          69.99
+          70
         ],
         [
           75,
-          79.99
+          80
         ]
       ]
     },
@@ -116,7 +110,7 @@ window.TIMER_CONFIG =
       "ranges": [
         [
           55,
-          59.99
+          60
         ]
       ]
     }
